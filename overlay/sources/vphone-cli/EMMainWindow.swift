@@ -221,6 +221,7 @@ final class EMPhonesPageView: EMPageView {
             pane.isActive = index == active && wanted.count > 1
             pane.isDual = dual
             pane.state = slot.control?.isConnected == true ? .linked : slot.state
+            pane.needsFirmware = !slot.hasFirmware
             pane.setVMName(slot.bundleName)
             pane.linkText = slot.control?.guestIP ?? ""
         }

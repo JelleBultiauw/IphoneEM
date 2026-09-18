@@ -14,6 +14,8 @@ final class EMPhonePaneView: NSView {
     var linkText: String = "" { didSet { needsDisplay = true } }
     var isActive: Bool = false { didSet { needsDisplay = true; updateControls() } }
     var isDual: Bool = false { didSet { needsDisplay = true } }
+    /// True when the selected machine has no firmware restored yet.
+    var needsFirmware = false { didSet { needsDisplay = true } }
 
     var onBoot: (() -> Void)?
     var onStop: (() -> Void)?
@@ -349,8 +351,13 @@ final class EMPhonePaneView: NSView {
                 headline = "Launch failed"
                 hint = "Check the log in Setup"
             default:
-                headline = "Device off"
-                hint = "Press Boot to start"
+                if needsFirmware {
+                    headline = "No firmware installed"
+                    hint = "Create Phone in Setup, then boot"
+                } else {
+                    headline = "Device off"
+                    hint = "Press Boot to start"
+                }
             }
             let paragraph = NSMutableParagraphStyle()
             paragraph.alignment = .center
@@ -378,6 +385,29 @@ final class EMPhonePaneView: NSView {
             y -= hintSize.height + 4
             (hint as NSString).draw(in: NSRect(x: fittedScreenRect.minX + 12, y: y, width: width,
                                                height: hintSize.height), withAttributes: hintAttributes)
+        } else if needsFirmware && (state == .running || state == .booting) {
+            // the guest is up with an empty disk: say so instead of showing black
+            let message = "No firmware on this machine. Create it in Setup."
+            let paragraph = NSMutableParagraphStyle()
+            paragraph.alignment = .center
+            let attributes: [NSAttributedString.Key: Any] = [
+                .font: EMFont.medium(11.5),
+                .foregroundColor: EMPalette.text,
+                .paragraphStyle: paragraph,
+            ]
+            let size = (message as NSString).boundingRect(with: NSSize(width: fittedScreenRect.width - 40, height: 60),
+                                                          options: [.usesLineFragmentOrigin], attributes: attributes)
+            let chip = NSRect(x: fittedScreenRect.midX - size.width / 2 - 14,
+                              y: fittedScreenRect.minY + 26,
+                              width: size.width + 28, height: size.height + 16)
+            EMDraw.fill(chip, NSColor(white: 0, alpha: 0.62), radius: chip.height / 2)
+            NSColor(white: 1, alpha: 0.16).setStroke()
+            let path = NSBezierPath(roundedRect: chip.insetBy(dx: 0.5, dy: 0.5), xRadius: chip.height / 2, yRadius: chip.height / 2)
+            path.lineWidth = 1
+            path.stroke()
+            (message as NSString).draw(in: NSRect(x: chip.minX + 14, y: chip.midY - size.height / 2,
+                                                  width: size.width + 1, height: size.height),
+                                       withAttributes: attributes)
         }
     }
 

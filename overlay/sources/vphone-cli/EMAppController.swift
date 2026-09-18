@@ -52,6 +52,9 @@ final class EMPhoneSlot {
     var pane: EMPhonePaneView?
     var udid: String?
     var task: Task<Void, Never>?
+    /// False when the bundle has no restored firmware (empty Disk.img): the VM
+    /// boots into nothing, which otherwise looks like a black screen bug.
+    var hasFirmware = true
 
     init(index: Int) { self.index = index }
 
@@ -209,9 +212,13 @@ final class EMAppController: NSObject, NSApplicationDelegate {
         }
         slot.bundleName = name
         slot.udid = nil
-        if name != nil {
+        if let name {
             slot.state = .offline
-            slot.udid = readUDID(name: name!)
+            slot.udid = readUDID(name: name)
+            slot.hasFirmware = guestIsInstalled(name: name)
+            if !slot.hasFirmware {
+                EMLog.shared.write("phone \(index + 1): \(name) has no firmware yet, run Create Phone in Setup")
+            }
         } else {
             slot.state = .empty
         }
@@ -219,6 +226,18 @@ final class EMAppController: NSObject, NSApplicationDelegate {
             EMLog.shared.write("phone \(index + 1): vm = \(name ?? "none")")
         }
         refreshUI()
+    }
+
+    /// The engine restores iOS onto Disk.img; before that the sparse image has
+    /// nothing allocated in it. A restored machine holds several GB.
+    func guestIsInstalled(name: String) -> Bool {
+        guard let bundle = try? library.bundle(named: name) else { return false }
+        let disk = bundle.url.appendingPathComponent(bundle.manifest.diskImage)
+        guard let values = try? disk.resourceValues(forKeys: [.totalFileAllocatedSizeKey, .fileAllocatedSizeKey]) else {
+            return false
+        }
+        let allocated = Int64(values.totalFileAllocatedSize ?? values.fileAllocatedSize ?? 0)
+        return allocated > 1_000_000_000
     }
 
     private func readUDID(name: String) -> String? {
@@ -252,6 +271,9 @@ final class EMAppController: NSObject, NSApplicationDelegate {
         slot.state = .booting
         refreshUI()
         EMLog.shared.write("phone \(index + 1): booting \(name)...")
+        if !slot.hasFirmware {
+            EMLog.shared.write("phone \(index + 1): warning, this machine has no firmware on its disk yet, so the screen will stay black. Run Create Phone in Setup first.")
+        }
 
         slot.task = Task { @MainActor [weak self] in
             guard let self else { return }
