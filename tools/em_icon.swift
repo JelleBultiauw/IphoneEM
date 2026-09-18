@@ -1,5 +1,5 @@
 #!/usr/bin/env swift
-// em_icon.swift — renders the iPhoneEM app icon and packs an .icns
+// em_icon.swift - renders the iPhoneEM app icon and packs an .icns
 // Apple-style macOS icon: dark squircle tile, a meticulously rendered device,
 // layered highlights (no flat shapes, no gradient soup).
 import AppKit

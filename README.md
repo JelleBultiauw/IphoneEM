@@ -1,33 +1,40 @@
 # iPhoneEM
 
-A native macOS app that runs **jailbroken virtual iPhones** on Apple Silicon — built as a GUI on top of
-[`vphone-cli`](https://github.com/Lakr233/vphone-cli).
+A Mac app for running jailbroken virtual iPhones on Apple Silicon.
+
+It is a window around [vphone-cli](https://github.com/Lakr233/vphone-cli). That project does the real
+work: it boots actual iOS firmware in a virtual machine and installs a jailbreak into the guest. It is
+a command line tool, and I kept forgetting the flags, so this puts a UI on it.
 
 ![iPhoneEM](docs/screenshot.png)
 
-The engine boots real iOS firmware (PV=3 virtual machines via `Virtualization.framework`); iPhoneEM
-gives it a proper window: a sidebar of shortcuts on the left, live device bays on the right — one
-phone by default, **two side by side** with the *Two phones* switch. Everything the VM writes stays
-on disk, so whatever you do on the phone is still there after a reboot.
+## What is in the window
 
-## Features
+The sidebar has six shortcuts. The first one is the reason the app exists.
 
-| Sidebar | What it does |
-| --- | --- |
-| **Phones** | 1–2 device bays with a live, touchable screen. Boot / Stop, Home, Lock, volume, Snapshot. Drag an `.ipa` onto a bay to install it, right-click the screen for Home. |
-| **Files** | The iPhone's own file system — browse, upload, download, new folder, delete. |
-| **Apps** | Installed apps with launch/terminate, `.ipa`/`.tipa` install, and "open URL on the phone". |
-| **Screenshots** | Device captures saved to `~/Pictures/iPhoneEM`. |
-| **Setup** | Host checks (SIP / AMFI), the machine library (create / clone / delete / assign to a bay) and a live console of the engine's output. |
-| **Info** | Paths, per-phone UDID / IP / SSH command and a clipboard bridge to the guest. |
+**Phones** shows the device bays. One bay by default, two if you flip the "Two phones" switch. Each
+bay has Boot, Stop, Home, Lock, volume and Snapshot, and shows the live screen, so you can tap and
+swipe in it like a real phone. Drag an .ipa onto a bay to install it. Right click on the screen is the
+home button.
+
+The rest:
+
+- **Files** browses the phone's own file system. Upload, download, new folder, delete.
+- **Apps** lists installed applications and can launch, terminate or install packages.
+- **Screenshots** keeps captures in `~/Pictures/iPhoneEM`.
+- **Setup** checks the host, manages the machine library and shows the engine's output in a console.
+- **Info** has paths, the UDID and IP of each phone, the SSH command and a clipboard bridge.
+
+Two bays run two machines at the same time, each with its own disk, so they are really separate
+phones. You need a second machine for that: Setup can clone one in a few seconds.
 
 ## Requirements
 
-- Apple Silicon, macOS 15 (Sequoia) or newer, Xcode command line tools
-- Homebrew packages for the firmware pipeline:
-  `brew install aria2 gnu-tar openssl@3 ldid-procursus sshpass zstd cmake keystone python@3.13 wget libusb ipsw`
-- **SIP / AMFI relaxation** (Apple requires this for PV=3 guests — no app can do it for you):
-  1. Reboot into Recovery (hold the power button), open Terminal:
+- Apple Silicon Mac, macOS 15 or newer, Xcode command line tools
+- `brew install aria2 gnu-tar openssl@3 ldid-procursus sshpass zstd cmake keystone python@3.13 wget libusb ipsw`
+- SIP and AMFI have to be relaxed. Apple requires this for these virtual machines and no app can do it
+  for you:
+  1. Reboot into Recovery (hold the power button), open Terminal and run:
      ```
      csrutil disable
      csrutil allow-research-guests enable
@@ -37,69 +44,77 @@ on disk, so whatever you do on the phone is still there after a reboot.
      sudo nvram boot-args="amfi_get_out_of_my_way=1"
      ```
 
-  The Setup page shows the live status of both. Without them the app runs, but no VM can boot.
+Setup shows the live status of both. Without them the app still opens, but nothing will boot.
 
 ## Build
 
 ```sh
-./build.sh                 # fetches the pinned engine, applies the GUI, installs to /Applications
-./build.sh --no-install    # only produces dist/iPhoneEM.app
-VPHONE_ENGINE=~/vphone-cli ./build.sh   # use your own vphone-cli checkout instead
+./build.sh                 # fetches the engine, applies the UI, installs to /Applications
+./build.sh --no-install    # stops after dist/iPhoneEM.app
+VPHONE_ENGINE=~/vphone-cli ./build.sh   # use your own engine checkout
 ```
 
-The engine is pinned to a known-good commit and lives in `.build/engine`. Its firmware pipeline needs
-extra host tools once:
+The engine is pinned to a commit I tested and lands in `.build/engine`. The firmware pipeline needs
+some extra tools on the host, once:
 
 ```sh
 cd .build/engine && ./scripts/setup_tools.sh
 ```
 
-## Run a jailbroken phone
+## Running a phone
 
-1. Setup → name it (e.g. `myphone`), variant **jb** → **Create Phone**. The console shows the whole
-   pipeline: IPSW download (cached in `~/.vphone/ipsws`), boot-chain patch, DFU restore, CFW install
-   (macOS asks for your password once — the app uses the native admin dialog) and the first boot.
-2. Phones → **Select VM** → your machine → **Boot**. During iOS setup pick a region outside Japan/EU
-   (system apps fail to install there). Sileo + TrollStore arrive automatically with the `jb` variant.
-3. Optional second phone: Setup → **Clone** (fast APFS copy, fresh identity) → assign it to bay 2 and
-   turn on *Two phones*.
-4. SSH into the guest: `ssh -p 22222 mobile@<ip>` (password `alpine`; the IP is on the Info page).
+1. Setup, type a name like `myphone`, leave the variant on `jb`, press Create Phone. The console shows
+   what is happening: it downloads the firmware, patches the boot chain, restores over DFU, installs
+   the jailbreak and boots once to finish. The firmware is cached in `~/.vphone/ipsws`, so a second
+   machine goes faster. macOS asks for your password once, for the CFW step.
+2. Phones, pick your machine, press Boot. During the iOS setup wizard pick a region other than Japan or
+   the EU, otherwise system apps refuse to install. Sileo and TrollStore show up on their own with the
+   `jb` variant.
+3. SSH into the guest with `ssh -p 22222 mobile@<ip>`, password `alpine`. The IP is on the Info page.
 
-### Where your data lives
+Clone the machine in Setup if you want the second bay to show a different phone.
 
-`~/.vphone/VMs/<name>/` — `Disk.img` (sparse, 64 GB by default), `nvram.bin`, `SEPStorage` and
-`config.plist`. The guest writes straight to that disk, so installed apps, files and settings survive
-stopping the phone or quitting the app. Stopping is a hard power-off (iOS recovers through its journal
-on the next boot); the engine has no suspend, so a boot is always a cold boot from disk.
+## Where your stuff is stored
 
-## Repository layout
+Everything lives in `~/.vphone/VMs/<name>/`: `Disk.img` (sparse, 64 GB by default), `nvram.bin`,
+`SEPStorage` and `config.plist`. The guest writes straight into that disk, so apps you install, files
+you drop in and settings you change are still there next time.
+
+Stopping a phone is a hard power off from the host side. iOS recovers through its journal on the next
+boot, but it is a cold boot every time: the engine has no suspend, so you always come back to the lock
+screen instead of the screen you left. Shutting down from inside iOS is cleaner if you care about that.
+
+Deleting a machine in Setup deletes the whole folder, so that is the one button to be careful with.
+
+## Repo layout
 
 ```
-build.sh                     fetch engine → apply GUI → build → sign → bundle → install
-overlay/sources/vphone-cli/  the GUI sources (EM*.swift) that are copied into the engine
-patches/                     the two small edits the engine needs (entry point + guest-stop guard)
-app/EMInfo.plist             app bundle metadata
-tools/em_icon.swift          renders the app icon (tools/EMAppIcon.icns)
-scripts/sync-from-engine.sh  dev helper: regenerate overlay + patches from a working engine tree
+build.sh                     fetch engine, apply UI, build, sign, bundle, install
+overlay/sources/vphone-cli/  the UI sources, copied into the engine build (EM*.swift)
+patches/                     the two engine edits the app needs
+app/EMInfo.plist             bundle metadata
+tools/em_icon.swift          renders the app icon
+docs/screenshot.png          the picture above
+scripts/sync-from-engine.sh  writes UI changes back from an engine checkout
 ```
 
 ## How it works
 
-`vphone-cli` is a CLI that creates and boots virtual iPhones. iPhoneEM compiles that engine into an
-app bundle and adds a GUI on top of it:
+Every bay boots its own `VPhoneVirtualMachine` inside the app process and draws it with a
+`VZVirtualMachineView` subclass that turns mouse events into touches in the guest. Guest features like
+the file browser, the app list and the clipboard go through the engine's vsock channel to the
+`vphoned` daemon that runs inside iOS. Commands for the library and the host checks run the same binary
+as a child process, and their output goes into the Setup console.
 
-- Each bay boots its own `VPhoneVirtualMachine` **inside the app process** (two VMs coexist) and shows
-  it through a `VZVirtualMachineView` subclass that injects touches into the guest.
-- Guest-side features (file browser, app list, clipboard, HID keys) go through the engine's vsock
-  control channel (`VPhoneControl` + the `vphoned` daemon that ships inside the guest).
-- Pipeline commands (`vm create/clone/delete`, host checks) run the same binary as a child process with
-  their output streamed into the Setup console.
+The two engine edits are small: one routes a launch without arguments to the UI, the other stops the
+process from exiting when a guest shuts down, because with two machines one of them stopping should not
+take the app with it.
 
-## Credits & license
+## Credits
 
-- Engine: [`Lakr233/vphone-cli`](https://github.com/Lakr233/vphone-cli) (MIT) and its contributors.
-- Background research: [wh1te4ever/super-tart-vphone-writeup](https://github.com/wh1te4ever/super-tart-vphone-writeup).
-- iPhoneEM's own code (the GUI, build script, icon): MIT — see [LICENSE](LICENSE).
+The engine is [Lakr233/vphone-cli](https://github.com/Lakr233/vphone-cli), MIT, and the research behind
+it comes from [wh1te4ever/super-tart-vphone-writeup](https://github.com/wh1te4ever/super-tart-vphone-writeup).
+What I wrote is the UI, the build script and the icon: MIT, see [LICENSE](LICENSE).
 
-Not affiliated with Apple. The virtual iPhones are research VMs: use them for development and testing
-on hardware you own, and respect the software licences of anything you install into a guest.
+Not affiliated with Apple. These are research VMs, so use them on hardware you own and respect the
+licences of whatever you install on the guest.

@@ -27,6 +27,6 @@
 	<key>NSSupportsAutomaticTermination</key>
 	<false/>
 	<key>NSHumanReadableCopyright</key>
-	<string>iPhoneEM — virtual iPhone front-end for vphone-cli</string>
+	<string>iPhoneEM - virtual iPhone front-end for vphone-cli</string>
 </dict>
 </plist>

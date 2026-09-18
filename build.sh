@@ -1,5 +1,5 @@
 #!/bin/zsh
-# build.sh — build iPhoneEM and install it into /Applications.
+# build.sh - build iPhoneEM and install it into /Applications.
 #
 #   ./build.sh                 fetch the pinned engine, apply the GUI, build, install
 #   ./build.sh --no-install    only produce dist/iPhoneEM.app
@@ -43,7 +43,7 @@ done
 
 if [[ ! -f "$ENGINE_DIR/sources/vphone-cli/VPhoneBuildInfo.swift" ]]; then
   GIT_HASH="$(git -C "$ENGINE_DIR" rev-parse --short HEAD 2>/dev/null || echo unknown)"
-  echo '// Auto-generated — do not edit' > "$ENGINE_DIR/sources/vphone-cli/VPhoneBuildInfo.swift"
+  echo '// Auto-generated - do not edit' > "$ENGINE_DIR/sources/vphone-cli/VPhoneBuildInfo.swift"
   echo "enum VPhoneBuildInfo { static let commitHash = \"${GIT_HASH}\" }" >> "$ENGINE_DIR/sources/vphone-cli/VPhoneBuildInfo.swift"
 fi
 
@@ -64,7 +64,7 @@ if [[ ! -f "$BUILD_DIR/vphoned.signed" ]]; then
       ldid -Sscripts/vphoned/entitlements.plist -M -Kscripts/vphoned/signcert.p12 "$BUILD_DIR/vphoned.signed" || true
     fi
   else
-    echo "  warning: ldid not installed (brew install ldid-procursus) — guest features stay off"
+    echo "  warning: ldid not installed (brew install ldid-procursus) - guest features stay off"
   fi
 fi
 
@@ -89,7 +89,7 @@ for tool in trustcache insert_dylib; do
   if [[ -x ".tools/bin/$tool" ]]; then
     cp -f ".tools/bin/$tool" "$RES/.tools/bin/$tool"
   else
-    echo "  warning: .tools/bin/$tool missing — run ./scripts/setup_tools.sh in the engine for the create pipeline"
+    echo "  warning: .tools/bin/$tool missing - run ./scripts/setup_tools.sh in the engine for the create pipeline"
   fi
 done
 [[ -f "$BUILD_DIR/vphoned.signed" ]] && cp -f "$BUILD_DIR/vphoned.signed" "$RES/vphoned.signed"
@@ -108,4 +108,4 @@ if [[ "$INSTALL" == "1" ]]; then
   echo "  installed /Applications/iPhoneEM.app"
 fi
 echo ""
-echo "done → $APP"
+echo "done -> $APP"

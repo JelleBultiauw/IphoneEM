@@ -60,7 +60,7 @@ enum EMPalette {
 // MARK: - Typography
 
 enum EMFont {
-    /// System UI font — SF by default, as Apple intends.
+    /// System UI font - SF by default, as Apple intends.
     static func ui(_ size: CGFloat, bold: Bool = false) -> NSFont {
         NSFont.systemFont(ofSize: size, weight: bold ? .semibold : .regular)
     }
@@ -153,7 +153,7 @@ enum EMDraw {
         path.stroke()
     }
 
-    /// A soft surface with a hairline border — the base of every card here.
+    /// A soft surface with a hairline border - the base of every card here.
     static func card(_ rect: NSRect, fill fillColor: NSColor = EMPalette.card, radius: CGFloat = 10,
                      border: NSColor = EMPalette.border, topHighlight: Bool = true) {
         let path = NSBezierPath(roundedRect: rect, xRadius: radius, yRadius: radius)
@@ -283,7 +283,7 @@ final class EMButton: NSControl {
 
     var title: String { didSet { invalidateIntrinsicContentSize(); needsDisplay = true } }
     var kind: Kind { didSet { needsDisplay = true } }
-    /// SF Symbol name — tinted with the label colour in every state.
+    /// SF Symbol name - tinted with the label colour in every state.
     var iconName: String? { didSet { invalidateIntrinsicContentSize(); needsDisplay = true } }
     var icon: NSImage? { didSet { invalidateIntrinsicContentSize(); needsDisplay = true } }
     var isActive = false { didSet { needsDisplay = true } }
@@ -330,7 +330,7 @@ final class EMButton: NSControl {
                                        owner: self, userInfo: nil))
     }
 
-    // MARK: Press feedback — instant on mouse-down, eased back out (100–160 ms).
+    // MARK: Press feedback - instant on mouse-down, eased back out (100–160 ms).
 
     private func animateScale(_ scale: CGFloat) {
         guard let layer else { return }
@@ -377,7 +377,7 @@ final class EMButton: NSControl {
         }
     }
 
-    /// Light catching the top edge of a surface — the detail that makes a fill read as material.
+    /// Light catching the top edge of a surface - the detail that makes a fill read as material.
     private func innerTopHighlight(_ rect: NSRect, alpha: CGFloat) {
         guard alpha > 0 else { return }
         NSGraphicsContext.current?.saveGraphicsState()

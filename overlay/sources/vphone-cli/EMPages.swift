@@ -163,7 +163,7 @@ final class EMFilesPage: EMPageView {
     private var files: [VPhoneRemoteFile] = []
 
     init(app: EMAppController?) {
-        super.init(app: app, title: "Files", subtitle: "iPhone storage · double-click a folder to open it")
+        super.init(app: app, title: "Files", subtitle: "iPhone storage. Double-click a folder to open it.")
         list.translatesAutoresizingMaskIntoConstraints = false
         pathField.translatesAutoresizingMaskIntoConstraints = false
 
@@ -243,11 +243,11 @@ final class EMFilesPage: EMPageView {
         guard let control, control.isConnected else {
             files = []
             list.listView.rows = []
-            statusField.stringValue = "phone offline — boot the phone to browse its files"
+            statusField.stringValue = "phone offline, boot the phone to browse its files"
             updateButtons()
             return
         }
-        statusField.stringValue = "loading \(currentPath)…"
+        statusField.stringValue = "loading \(currentPath)..."
         Task { @MainActor in
             do {
                 let entries = try await control.listFiles(path: currentPath)
@@ -262,7 +262,7 @@ final class EMFilesPage: EMPageView {
                           columns: [file.displaySize, file.displayDate],
                           tint: file.isDirectoryLike ? EMPalette.accent : nil)
                 }
-                statusField.stringValue = "\(files.count) items · \(currentPath)"
+                statusField.stringValue = "\(files.count) items in \(currentPath)"
             } catch {
                 files = []
                 list.listView.rows = []
@@ -302,7 +302,7 @@ final class EMFilesPage: EMPageView {
             do {
                 let data = try await control.downloadFile(path: file.path)
                 try data.write(to: destination)
-                EMLog.shared.write("files: saved \(file.path) → \(destination.path)")
+                EMLog.shared.write("files: saved \(file.path) -> \(destination.path)")
                 statusField.stringValue = "saved to \(destination.path)"
             } catch {
                 statusField.stringValue = "download failed: \(error)"
@@ -326,7 +326,7 @@ final class EMFilesPage: EMPageView {
                     let data = try Data(contentsOf: url)
                     let target = (currentPath as NSString).appendingPathComponent(url.lastPathComponent)
                     try await control.uploadFile(path: target, data: data)
-                    EMLog.shared.write("files: uploaded \(url.lastPathComponent) → \(target)")
+                    EMLog.shared.write("files: uploaded \(url.lastPathComponent) -> \(target)")
                 } catch {
                     EMLog.shared.write("files: upload failed \(url.lastPathComponent): \(error)")
                 }
@@ -387,15 +387,15 @@ final class EMAppsPage: EMPageView {
     private let list = EMListBox()
     private let statusField = EMText.label("", size: 10, color: NSColor(calibratedWhite: 0.35, alpha: 1))
     private let refreshButton = EMButton(title: "Refresh", compact: true)
-    private let installButton = EMButton(title: "Install IPA…", kind: .primary, compact: true)
+    private let installButton = EMButton(title: "Install IPA...", kind: .primary, compact: true)
     private let launchButton = EMButton(title: "Launch", compact: true)
     private let terminateButton = EMButton(title: "Terminate", compact: true)
-    private let openButton = EMButton(title: "Open URL…", compact: true)
+    private let openButton = EMButton(title: "Open URL...", compact: true)
 
     private var apps: [VPhoneControl.AppInfo] = []
 
     init(app: EMAppController?) {
-        super.init(app: app, title: "Apps", subtitle: "Installed applications · drag an .ipa onto a phone to install")
+        super.init(app: app, title: "Apps", subtitle: "Installed applications. Drag an .ipa onto a phone to install.")
         list.translatesAutoresizingMaskIntoConstraints = false
         let toolbar = EMUI.toolbar([refreshButton, installButton, launchButton, terminateButton, openButton, EMUI.spacer()])
         let statusBar = EMUI.toolbar([statusField], height: 22)
@@ -437,11 +437,11 @@ final class EMAppsPage: EMPageView {
         guard let control, control.isConnected else {
             apps = []
             list.listView.rows = []
-            statusField.stringValue = "phone offline — boot the phone to list its apps"
+            statusField.stringValue = "phone offline, boot the phone to list its apps"
             updateButtons()
             return
         }
-        statusField.stringValue = "loading…"
+        statusField.stringValue = "loading..."
         Task { @MainActor in
             do {
                 let result = try await control.appList(filter: "all")
@@ -454,7 +454,7 @@ final class EMAppsPage: EMPageView {
                           detail: app.bundleId,
                           tint: app.state == "running" ? EMPalette.ok : nil)
                 }
-                statusField.stringValue = "\(apps.count) apps · \(apps.filter { $0.state == "running" }.count) running"
+                statusField.stringValue = "\(apps.count) apps, \(apps.filter { $0.state == "running" }.count) running"
             } catch {
                 apps = []
                 list.listView.rows = []
@@ -490,10 +490,10 @@ final class EMAppsPage: EMPageView {
         let urls = panel.urls
         Task { @MainActor in
             for url in urls {
-                statusField.stringValue = "installing \(url.lastPathComponent)…"
+                statusField.stringValue = "installing \(url.lastPathComponent)..."
                 do {
                     let result = try await control.installIPA(localURL: url)
-                    EMLog.shared.write("apps: installed \(url.lastPathComponent) — \(result)")
+                    EMLog.shared.write("apps: installed \(url.lastPathComponent): \(result)")
                     statusField.stringValue = VPhoneInstallPackage.successMessage(for: url.lastPathComponent, detail: result)
                 } catch {
                     EMLog.shared.write("apps: install failed \(url.lastPathComponent): \(error)")
@@ -567,7 +567,7 @@ final class EMScreenshotsPage: EMPageView {
     private var files: [URL] = []
 
     init(app: EMAppController?) {
-        super.init(app: app, title: "Screenshots", subtitle: "Captured device screens · double-click to open")
+        super.init(app: app, title: "Screenshots", subtitle: "Captured device screens. Double-click to open one.")
         list.translatesAutoresizingMaskIntoConstraints = false
         let toolbar = EMUI.toolbar([captureButton, refreshButton, openButton, EMUI.spacer(), deleteButton])
         let statusBar = EMUI.toolbar([statusField], height: 22)
@@ -626,7 +626,7 @@ final class EMScreenshotsPage: EMPageView {
             return EMRow(symbol: image == nil ? "photo" : nil, image: image?.emThumbnail(height: 44),
                          title: url.lastPathComponent, columns: [EMFormat.date(date)])
         }
-        statusField.stringValue = "\(files.count) captures · \(directory.path)"
+        statusField.stringValue = "\(files.count) captures in \(directory.path)"
         updateButtons()
     }
 
@@ -667,9 +667,9 @@ final class EMSetupPage: EMPageView {
     private let refreshButton = EMButton(title: "Rescan", compact: true)
     private let clearButton = EMButton(title: "Clear", compact: true)
 
-    private let sipLabel = EMText.label("SIP: checking…", size: 11.5)
-    private let amfiLabel = EMText.label("AMFI: checking…", size: 11.5)
-    private let engineLabel = EMText.label("Engine: …", size: 11.5, color: EMPalette.textSecondary)
+    private let sipLabel = EMText.label("SIP: checking...", size: 11.5)
+    private let amfiLabel = EMText.label("AMFI: checking...", size: 11.5)
+    private let engineLabel = EMText.label("Engine: ...", size: 11.5, color: EMPalette.textSecondary)
     private let libraryLabel = EMText.label("", size: 11.5, color: EMPalette.textSecondary)
 
     private var bundles: [VPhoneBundle] = []
@@ -746,7 +746,7 @@ final class EMSetupPage: EMPageView {
             self?.load()
         }
         clearButton.onAction = { [weak self] in self?.console.clear() }
-        vmList.listView.emptyText = "No machines yet — create one above"
+        vmList.listView.emptyText = "No machines yet. Create one above."
         vmList.listView.showsDetail = false
         vmList.listView.columnWidths = [80, 150]
         vmList.listView.onSelectionChange = { [weak self] in
@@ -784,7 +784,7 @@ final class EMSetupPage: EMPageView {
         vmList.listView.rows = bundles.map { bundle in
             EMRow(symbol: "internaldrive", title: bundle.name,
                   columns: [EMFormat.bytes(bundle.diskSizeBytes),
-                            "\(bundle.manifest.cpuCount) CPU · \(bundle.manifest.memorySize / 1024 / 1024 / 1024) GB"],
+                            "\(bundle.manifest.cpuCount) CPU, \(bundle.manifest.memorySize / 1024 / 1024 / 1024) GB"],
                   tint: EMPalette.textSecondary)
         }
         if let selectedName, let index = bundles.firstIndex(where: { $0.name == selectedName }) {
@@ -793,9 +793,9 @@ final class EMSetupPage: EMPageView {
             vmList.listView.selectedIndex = 0
         }
         libraryLabel.stringValue = bundles.isEmpty
-            ? "\(app?.libraryRoot.path ?? "") · no machines yet"
-            : "\(bundles.count == 1 ? "1 machine" : "\(bundles.count) machines") · \(app?.libraryRoot.path ?? "")"
-        engineLabel.stringValue = "Engine vphone-cli \(VPhoneBuildInfo.commitHash) · \(VPhoneResources.resolve().base.lastPathComponent)"
+            ? "\(app?.libraryRoot.path ?? ""), no machines yet"
+            : "\(bundles.count == 1 ? "1 machine" : "\(bundles.count) machines"), \(app?.libraryRoot.path ?? "")"
+        engineLabel.stringValue = "Engine vphone-cli \(VPhoneBuildInfo.commitHash), \(VPhoneResources.resolve().base.lastPathComponent)"
         updateButtons()
     }
 
@@ -818,13 +818,13 @@ final class EMSetupPage: EMPageView {
         Task { @MainActor in
             let sip = await EMShell.capture("/usr/bin/csrutil", ["status"]).lowercased()
             if sip.contains("status: disabled") {
-                sipLabel.stringValue = "SIP — disabled (required)"
+                sipLabel.stringValue = "SIP disabled (required)"
                 sipLabel.textColor = EMPalette.ok
             } else if sip.contains("without debug") || sip.contains("custom configuration") {
-                sipLabel.stringValue = "SIP — partial: allow-research-guests missing"
+                sipLabel.stringValue = "SIP only partly relaxed, allow-research-guests is missing"
                 sipLabel.textColor = EMPalette.warn
             } else {
-                sipLabel.stringValue = "SIP — enabled: disable it in Recovery first"
+                sipLabel.stringValue = "SIP enabled, turn it off in Recovery first"
                 sipLabel.textColor = EMPalette.bad
             }
 
@@ -833,14 +833,14 @@ final class EMSetupPage: EMPageView {
                 .replacingOccurrences(of: "boot-args", with: "")
                 .trimmingCharacters(in: .whitespacesAndNewlines)
             if bootArgs.contains("amfi_get_out_of_my_way=1") {
-                amfiLabel.stringValue = "AMFI — relaxed (amfi_get_out_of_my_way=1)"
+                amfiLabel.stringValue = "AMFI relaxed (amfi_get_out_of_my_way=1)"
                 amfiLabel.textColor = EMPalette.ok
             } else if !bootArgsValue.isEmpty {
-                // show what IS set — a typo or a stale value is visible immediately
-                amfiLabel.stringValue = "AMFI — wrong boot-args: \(bootArgsValue)"
+                // show what IS set - a typo or a stale value is visible immediately
+                amfiLabel.stringValue = "AMFI: wrong boot-args, \(bootArgsValue)"
                 amfiLabel.textColor = EMPalette.bad
             } else {
-                amfiLabel.stringValue = "AMFI — no boot-args: set amfi_get_out_of_my_way=1 + reboot"
+                amfiLabel.stringValue = "AMFI: no boot-args set, use amfi_get_out_of_my_way=1 and reboot"
                 amfiLabel.textColor = EMPalette.bad
             }
         }
@@ -913,7 +913,7 @@ final class EMSetupPage: EMPageView {
         let target = "\(bundle.name)-2"
         let alert = NSAlert()
         alert.messageText = "Clone \(bundle.name) into \(target)?"
-        alert.informativeText = "Fast APFS copy with a fresh device identity — useful for running a second phone side by side."
+        alert.informativeText = "Fast APFS copy with a fresh device identity. Handy for running a second phone side by side."
         alert.addButton(withTitle: "Clone")
         alert.addButton(withTitle: "Cancel")
         guard alert.runModal() == .alertFirstButtonReturn else { return }
@@ -989,9 +989,9 @@ final class EMInfoPage: EMPageView {
         phonesStack.alignment = .width
 
         for index in 0..<2 {
-            let vm = EMUI.lcd("—", width: 170)
-            let udid = EMUI.lcd("—", width: 280)
-            let ssh = EMUI.lcd("—", width: 300)
+            let vm = EMUI.lcd("-", width: 170)
+            let udid = EMUI.lcd("-", width: 280)
+            let ssh = EMUI.lcd("-", width: 300)
             let copyButton = EMButton(title: "Copy SSH", compact: true)
             copyButton.onAction = { [weak self] in
                 guard let self, let info = self.app?.phoneInfo(slot: index) else { return }
@@ -1040,15 +1040,15 @@ final class EMInfoPage: EMPageView {
     required init?(coder: NSCoder) { fatalError() }
 
     override func refresh() {
-        engineLabel.stringValue = "Engine vphone-cli \(VPhoneBuildInfo.commitHash) · \(VPhoneResources.resolve().base.path)"
+        engineLabel.stringValue = "Engine vphone-cli \(VPhoneBuildInfo.commitHash), \(VPhoneResources.resolve().base.path)"
         libraryField.stringValue = app?.libraryRoot.path ?? "~/.vphone/VMs"
         ipswField.stringValue = VPhoneResources.resolve().ipswCacheDir.path
         guard let app else { return }
         for index in 0..<phoneFields.count {
             let info = app.phoneInfo(slot: index)
             let fields = phoneFields[index]
-            fields[0].stringValue = info.vmName ?? "—"
-            fields[1].stringValue = info.udid ?? "—"
+            fields[0].stringValue = info.vmName ?? "-"
+            fields[1].stringValue = info.udid ?? "-"
             fields[2].stringValue = info.sshCommand
         }
         statusField.stringValue = app.activeControl?.isConnected == true

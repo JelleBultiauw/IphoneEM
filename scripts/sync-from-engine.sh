@@ -1,5 +1,5 @@
 #!/bin/zsh
-# sync-from-engine.sh — dev helper. Copies the GUI sources out of a working
+# sync-from-engine.sh - dev helper. Copies the GUI sources out of a working
 # vphone-cli tree into overlay/ and regenerates the engine patches, so the
 # repository stays the source of truth.
 #
@@ -20,6 +20,6 @@ git -C "$ENGINE" diff -- sources/vphone-cli/main.swift \
 git -C "$ENGINE" diff -- sources/vphone-cli/VPhoneVirtualMachine.swift \
   > "$HERE/patches/0002-guest-stop-guard.patch"
 for patch in "$HERE"/patches/*.patch; do
-  [[ -s "$patch" ]] || { echo "  warning: $(basename "$patch") is empty — did the engine change?"; }
+  [[ -s "$patch" ]] || { echo "  warning: $(basename "$patch") is empty - did the engine change?"; }
 done
-echo "done — review with: git diff"
+echo "done - review with: git diff"

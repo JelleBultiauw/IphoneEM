@@ -128,7 +128,7 @@ final class EMSidebarView: NSView {
                 .font: EMFont.ui(11),
                 .foregroundColor: index == activePhone ? EMPalette.textSecondary : EMPalette.textTertiary,
             ]
-            let detail = phone.subtitle.isEmpty ? "—" : phone.subtitle
+            let detail = phone.subtitle.isEmpty ? "-" : phone.subtitle
             (detail as NSString).draw(at: NSPoint(x: row.minX + 32, y: row.midY - 11), withAttributes: detailAttributes)
 
             // state dot

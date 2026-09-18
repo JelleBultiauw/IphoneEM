@@ -115,7 +115,7 @@ final class EMMainWindowController: NSObject {
         let formatter = DateFormatter()
         formatter.dateFormat = "HH:mm:ss"
         var segments: [EMStatusBarView.Segment] = [
-            .init(text: "Phone \(slot.index + 1) · \(slot.bundleName ?? "no machine")", color: EMPalette.textSecondary),
+            .init(text: "Phone \(slot.index + 1), \(slot.bundleName ?? "no machine")", color: EMPalette.textSecondary),
             .init(text: slot.state.text, color: slot.state.color,
                   led: (slot.state.color, slot.state == .linked || slot.state == .running)),
         ]
@@ -181,7 +181,7 @@ final class EMPhonesPageView: EMPageView {
     private(set) var panes: [(index: Int, pane: EMPhonePaneView)] = []
 
     init() {
-        super.init(app: nil, title: "Phones", subtitle: "Click a bay to focus — interact with the screen directly")
+        super.init(app: nil, title: "Phones", subtitle: "Click a bay to focus, then interact with the screen directly")
     }
 
     required init?(coder: NSCoder) { fatalError() }

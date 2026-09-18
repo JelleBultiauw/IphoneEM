@@ -255,7 +255,7 @@ final class EMPhonePaneView: NSView {
                 .font: EMFont.ui(11),
                 .foregroundColor: EMPalette.textTertiary,
             ]
-            let caption = "\(bundleName) · \(screenWidth)×\(screenHeight) px"
+            let caption = "\(bundleName), \(screenWidth)x\(screenHeight) px"
             let size = (caption as NSString).size(withAttributes: captionAttributes)
             let snapLeft = bounds.maxX - (snapButton.isHidden ? 14 : snapButton.frame.minX) - 8
             let available = snapLeft - 130
@@ -343,7 +343,7 @@ final class EMPhonePaneView: NSView {
                 headline = "No virtual machine"
                 hint = "Create one in Setup"
             case .booting:
-                headline = "Booting…"
+                headline = "Booting..."
                 hint = "Guest firmware is starting"
             case .error:
                 headline = "Launch failed"

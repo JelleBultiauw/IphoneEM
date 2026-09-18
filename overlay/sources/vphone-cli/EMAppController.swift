@@ -105,7 +105,7 @@ final class EMAppController: NSObject, NSApplicationDelegate {
         buildMenu()
         try? FileManager.default.createDirectory(at: screenshotsDirectory, withIntermediateDirectories: true)
 
-        EMLog.shared.write("iPhoneEM started · engine \(VPhoneBuildInfo.commitHash)")
+        EMLog.shared.write("iPhoneEM started, engine \(VPhoneBuildInfo.commitHash)")
         EMLog.shared.write("library: \(libraryRoot.path)")
 
         let controller = EMMainWindowController(app: self)
@@ -204,7 +204,7 @@ final class EMAppController: NSObject, NSApplicationDelegate {
             return
         }
         if let name, let other = slots.first(where: { $0.index != index && $0.bundleName == name }) {
-            EMLog.shared.write("phone \(index + 1): \(name) is already used by phone \(other.index + 1) — pick another vm")
+            EMLog.shared.write("phone \(index + 1): \(name) is already used by phone \(other.index + 1), pick another vm")
             return
         }
         slot.bundleName = name
@@ -246,12 +246,12 @@ final class EMAppController: NSObject, NSApplicationDelegate {
         let slot = slots[index]
         guard slot.vm == nil else { return }
         guard let name = slot.bundleName else {
-            EMLog.shared.write("phone \(index + 1): no vm selected — pick one in SETUP")
+            EMLog.shared.write("phone \(index + 1): no vm selected, pick one in Setup")
             return
         }
         slot.state = .booting
         refreshUI()
-        EMLog.shared.write("phone \(index + 1): booting \(name)…")
+        EMLog.shared.write("phone \(index + 1): booting \(name)...")
 
         slot.task = Task { @MainActor [weak self] in
             guard let self else { return }
@@ -260,7 +260,7 @@ final class EMAppController: NSObject, NSApplicationDelegate {
                 do {
                     _ = try self.layout.stageVphoned(into: bundle)
                 } catch {
-                    EMLog.shared.write("phone \(index + 1): warning — could not stage vphoned: \(error)")
+                    EMLog.shared.write("phone \(index + 1): warning: could not stage vphoned: \(error)")
                 }
                 let options = try self.makeOptions(bundle: bundle, variant: slot.variant)
                 let vm = try VPhoneVirtualMachine(options: options)
@@ -280,7 +280,7 @@ final class EMAppController: NSObject, NSApplicationDelegate {
                 self.attachControl(slot: slot, options: options, vm: vm)
             } catch {
                 slot.state = .error("\(error)")
-                EMLog.shared.write("phone \(index + 1): boot failed — \(error)")
+                EMLog.shared.write("phone \(index + 1): boot failed: \(error)")
                 self.teardown(slot: index, keepError: true)
             }
             self.refreshUI()
@@ -291,7 +291,7 @@ final class EMAppController: NSObject, NSApplicationDelegate {
         guard index < slots.count else { return }
         let slot = slots[index]
         guard let vm = slot.vm else { return }
-        EMLog.shared.write("phone \(index + 1): stopping…")
+        EMLog.shared.write("phone \(index + 1): stopping...")
         slot.control?.cancelPendingRequests(reason: "user stopped the phone")
         vm.virtualMachine.stop { [weak self] error in
             Task { @MainActor in
@@ -362,7 +362,7 @@ final class EMAppController: NSObject, NSApplicationDelegate {
                 slot.state = .linked
                 EMLog.shared.write("phone \(index + 1): guest link online (caps: \(caps.joined(separator: ",")))")
                 if let ip = slot.control?.guestIP {
-                    EMLog.shared.write("phone \(index + 1): guest ip \(ip) · ssh -p 22222 mobile@\(ip)")
+                    EMLog.shared.write("phone \(index + 1): guest ip \(ip), ssh -p 22222 mobile@\(ip)")
                 }
                 self.refreshUI()
             }
@@ -532,10 +532,10 @@ final class EMAppController: NSObject, NSApplicationDelegate {
             menu.addItem(item)
         }
         if bundles.isEmpty {
-            menu.addItem(withTitle: "no vms — use SETUP to create one", action: nil, keyEquivalent: "")
+            menu.addItem(withTitle: "no vms yet, create one in Setup", action: nil, keyEquivalent: "")
         }
         menu.addItem(.separator())
-        let reveal = NSMenuItem(title: "Reveal VM Library…", action: #selector(revealLibrary), keyEquivalent: "")
+        let reveal = NSMenuItem(title: "Reveal VM Library...", action: #selector(revealLibrary), keyEquivalent: "")
         reveal.target = self
         menu.addItem(reveal)
         menu.popUp(positioning: nil, at: NSPoint(x: 0, y: view.bounds.minY - 4), in: view)

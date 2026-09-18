@@ -5,7 +5,7 @@ import Foundation
 
 struct EMRow {
     var icon: String = ""
-    /// SF Symbol name — preferred over `icon` and `image`.
+    /// SF Symbol name - preferred over `icon` and `image`.
     var symbol: String?
     var image: NSImage?
     var title: String
