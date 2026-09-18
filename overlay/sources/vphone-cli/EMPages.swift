@@ -829,11 +829,18 @@ final class EMSetupPage: EMPageView {
             }
 
             let bootArgs = await EMShell.capture("/usr/sbin/nvram", ["boot-args"])
+            let bootArgsValue = bootArgs
+                .replacingOccurrences(of: "boot-args", with: "")
+                .trimmingCharacters(in: .whitespacesAndNewlines)
             if bootArgs.contains("amfi_get_out_of_my_way=1") {
                 amfiLabel.stringValue = "AMFI — relaxed (amfi_get_out_of_my_way=1)"
                 amfiLabel.textColor = EMPalette.ok
+            } else if !bootArgsValue.isEmpty {
+                // show what IS set — a typo or a stale value is visible immediately
+                amfiLabel.stringValue = "AMFI — wrong boot-args: \(bootArgsValue)"
+                amfiLabel.textColor = EMPalette.bad
             } else {
-                amfiLabel.stringValue = "AMFI — restricted: set boot-args + reboot"
+                amfiLabel.stringValue = "AMFI — no boot-args: set amfi_get_out_of_my_way=1 + reboot"
                 amfiLabel.textColor = EMPalette.bad
             }
         }
