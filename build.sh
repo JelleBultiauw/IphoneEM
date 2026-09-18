@@ -100,8 +100,18 @@ cp -f scripts/vphone-amfidont "$RES/vphone-amfidont"
 chmod +x "$RES/vphone-amfidont"
 
 echo "=== [6/6] sign + install ==="
-codesign --force --sign - --entitlements "$ENTITLEMENTS" "$APP/Contents/MacOS/iPhoneEM"
-codesign --force --sign - "$APP" 2>/dev/null || true
+# Nested code first (no entitlements), then the bundle WITH the PV=3 entitlements.
+# Bundle signing rewrites the main executable's signature, so the entitlements
+# have to be passed on the bundle call too. Passing them on the binary only and
+# then re-signing the bundle silently drops them, and the VM then reports
+# "PV=3 hardware model not supported".
+codesign --force --sign - "$APP/Contents/MacOS/ldid" 2>/dev/null || true
+codesign --force --sign - --entitlements "$ENTITLEMENTS" "$APP"
+if ! codesign -d --entitlements - "$APP/Contents/MacOS/iPhoneEM" 2>&1 | grep -q "com.apple.private.virtualization.security-research"; then
+  echo "ERROR: PV=3 entitlements missing after signing - the app cannot boot a VM" >&2
+  exit 1
+fi
+echo "  entitlements verified"
 if [[ "$INSTALL" == "1" ]]; then
   rm -rf "/Applications/iPhoneEM.app"
   ditto "$APP" "/Applications/iPhoneEM.app"
