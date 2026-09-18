@@ -19,6 +19,8 @@ git -C "$ENGINE" diff -- sources/vphone-cli/main.swift \
   > "$HERE/patches/0001-gui-entrypoint.patch"
 git -C "$ENGINE" diff -- sources/vphone-cli/VPhoneVirtualMachine.swift \
   > "$HERE/patches/0002-guest-stop-guard.patch"
+git -C "$ENGINE" diff -- sources/vphone-cli/VPhoneVirtualMachineView.swift \
+  > "$HERE/patches/0003-trackpad-scroll.patch"
 for patch in "$HERE"/patches/*.patch; do
   [[ -s "$patch" ]] || { echo "  warning: $(basename "$patch") is empty - did the engine change?"; }
 done

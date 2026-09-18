@@ -1,0 +1,74 @@
+diff --git a/sources/vphone-cli/VPhoneVirtualMachineView.swift b/sources/vphone-cli/VPhoneVirtualMachineView.swift
+index 6d3f3f5..7ab4e03 100644
+--- a/sources/vphone-cli/VPhoneVirtualMachineView.swift
++++ b/sources/vphone-cli/VPhoneVirtualMachineView.swift
+@@ -10,6 +10,13 @@ class VPhoneVirtualMachineView: VZVirtualMachineView {
+     private var currentTouchSwipeAim: Int = 0
+     private var isDragHighlightVisible = false
+ 
++    /// Two finger trackpad input: the pointer stays a pointer, the trackpad
++    /// becomes the touch. Scroll deltas are replayed as a touch drag, so
++    /// scrolling and two finger swipes reach the guest the way a finger would.
++    private var scrollGestureActive = false
++    private var scrollTouchPoint: NSPoint = .zero
++    private var scrollGestureStart: NSPoint = .zero
++
+     // MARK: - Private API Accessors
+ 
+     /// https://github.com/wh1te4ever/super-tart-vphone-writeup/blob/main/contents/ScreenSharingVNC.swift
+@@ -164,6 +171,55 @@ class VPhoneVirtualMachineView: VZVirtualMachineView {
+         }
+     }
+ 
++    // MARK: - Trackpad scrolling and two finger swipes
++
++    override func scrollWheel(with event: NSEvent) {
++        let point = convert(event.locationInWindow, from: nil)
++        guard bounds.contains(point), virtualMachine != nil else { return }
++
++        // Physical finger movement, independent of the "natural scrolling" setting.
++        var dx = event.scrollingDeltaX
++        var dy = event.scrollingDeltaY
++        if event.isDirectionInvertedFromDevice {
++            dx = -dx
++            dy = -dy
++        }
++        // A classic wheel reports whole lines; a trackpad reports points.
++        if !event.hasPreciseScrollingDeltas {
++            dx *= 14
++            dy *= 14
++        }
++
++        let isFirstEvent = !scrollGestureActive
++            && (event.phase == .began || (event.phase == [] && event.momentumPhase == []))
++        if isFirstEvent {
++            scrollGestureActive = true
++            scrollTouchPoint = point
++            scrollGestureStart = point
++            currentTouchSwipeAim = hitTestEdge(at: point)
++            window?.makeFirstResponder(self)
++            if !sendTouchEvent(phase: 0, localPoint: scrollTouchPoint, timestamp: event.timestamp) {
++                scrollGestureActive = false
++                return
++            }
++        }
++        guard scrollGestureActive else { return }
++
++        scrollTouchPoint.x += dx
++        scrollTouchPoint.y += dy
++        scrollTouchPoint.x = max(0, min(bounds.width, scrollTouchPoint.x))
++        scrollTouchPoint.y = max(0, min(bounds.height, scrollTouchPoint.y))
++        _ = sendTouchEvent(phase: 1, localPoint: scrollTouchPoint, timestamp: event.timestamp)
++
++        let isLastEvent = event.phase == .ended || event.phase == .cancelled
++            || (event.phase == [] && event.momentumPhase == [])
++        if isLastEvent {
++            _ = sendTouchEvent(phase: 3, localPoint: scrollTouchPoint, timestamp: event.timestamp)
++            scrollGestureActive = false
++            currentTouchSwipeAim = 0
++        }
++    }
++
+     // MARK: - Programmatic Touch (for automation)
+ 
+     /// Convert screenshot pixel coordinates to NSView local coordinates.
