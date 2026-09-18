@@ -930,7 +930,7 @@ final class EMSetupPage: EMPageView {
         alert.addButton(withTitle: "Cancel")
         alert.alertStyle = .warning
         guard alert.runModal() == .alertFirstButtonReturn else { return }
-        app?.runEngine(arguments: ["vm", "delete", bundle.name], label: "vm delete \(bundle.name)")
+        app?.runEngine(arguments: ["vm", "delete", bundle.name, "--force"], label: "vm delete \(bundle.name)")
         pollLibrary()
     }
 

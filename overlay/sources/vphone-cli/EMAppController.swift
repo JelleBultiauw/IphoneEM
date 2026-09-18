@@ -382,6 +382,9 @@ final class EMAppController: NSObject, NSApplicationDelegate {
             Task { @MainActor in
                 guard let self else { return }
                 slot.state = .linked
+                // a guest reboot reconnects the control channel: re-attach the
+                // display too, otherwise the bay can stay black after a restart
+                slot.pane?.refreshDisplay()
                 EMLog.shared.write("phone \(index + 1): guest link online (caps: \(caps.joined(separator: ",")))")
                 if let ip = slot.control?.guestIP {
                     EMLog.shared.write("phone \(index + 1): guest ip \(ip), ssh -p 22222 mobile@\(ip)")

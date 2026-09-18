@@ -25,6 +25,7 @@ final class EMPhonePaneView: NSView {
     var onVolumeDown: (() -> Void)?
     var onSnapshot: (() -> Void)?
     var onPickVM: ((NSView) -> Void)?
+    var onDisplayRefresh: (() -> Void)?
     var onSelect: (() -> Void)?
 
     private(set) var screenView: VPhoneVirtualMachineView?
@@ -38,6 +39,7 @@ final class EMPhonePaneView: NSView {
     private let volumeUpButton: EMButton
     private let volumeDownButton: EMButton
     private let vmButton: EMButton
+    private let refreshButton: EMButton
 
     private var screenWidth = 1290
     private var screenHeight = 2796
@@ -58,6 +60,7 @@ final class EMPhonePaneView: NSView {
         volumeUpButton = EMButton(kind: .quiet, compact: true, square: true)
         volumeDownButton = EMButton(kind: .quiet, compact: true, square: true)
         vmButton = EMButton(title: "Select VM", kind: .quiet, compact: true)
+        refreshButton = EMButton(kind: .quiet, compact: true, square: true)
         super.init(frame: .zero)
         wantsLayer = true
 
@@ -65,7 +68,7 @@ final class EMPhonePaneView: NSView {
         screenHolder.wantsLayer = true
         screenHolder.layer?.masksToBounds = true
 
-        buttons = [bootButton, stopButton, snapButton, homeButton, powerButton, volumeUpButton, volumeDownButton, vmButton]
+        buttons = [bootButton, stopButton, snapButton, homeButton, powerButton, volumeUpButton, volumeDownButton, vmButton, refreshButton]
         for button in buttons { addSubview(button) }
 
         bootButton.onAction = { [weak self] in self?.onBoot?() }
@@ -75,6 +78,11 @@ final class EMPhonePaneView: NSView {
         powerButton.onAction = { [weak self] in self?.onPower?() }
         volumeUpButton.onAction = { [weak self] in self?.onVolumeUp?() }
         volumeDownButton.onAction = { [weak self] in self?.onVolumeDown?() }
+        refreshButton.onAction = { [weak self] in
+            guard let self else { return }
+            self.refreshDisplay()
+            self.onDisplayRefresh?()
+        }
         vmButton.onAction = { [weak self] in
             guard let self else { return }
             self.onPickVM?(self.vmButton)
@@ -83,7 +91,7 @@ final class EMPhonePaneView: NSView {
         for (button, symbol) in [
             (bootButton, "power"), (stopButton, "stop.fill"), (snapButton, "camera"),
             (homeButton, "circle.dotted"), (powerButton, "lock"), (volumeUpButton, "speaker.plus"),
-            (volumeDownButton, "speaker.minus"),
+            (volumeDownButton, "speaker.minus"), (refreshButton, "arrow.clockwise"),
         ] {
             button.iconName = symbol
         }
@@ -95,6 +103,7 @@ final class EMPhonePaneView: NSView {
         bootButton.toolTip = "Boot this machine"
         stopButton.toolTip = "Stop this machine"
         vmButton.toolTip = "Choose the virtual machine in this bay"
+        refreshButton.toolTip = "Reconnect the display if the screen stays black"
 
         updateControls()
         updateStatus()
@@ -142,6 +151,16 @@ final class EMPhonePaneView: NSView {
 
     var hasScreen: Bool { screenView != nil }
 
+    /// Re-attach the virtual machine to the display view. After a guest reboot
+    /// (or a display sleep) the view can stop painting and show black even
+    /// though the guest is fine; assigning the machine again reconnects it.
+    func refreshDisplay() {
+        guard let view = screenView, let machine = view.virtualMachine else { return }
+        view.virtualMachine = nil
+        view.virtualMachine = machine
+        view.needsDisplay = true
+    }
+
     // MARK: - Layout
 
     override func layout() {
@@ -181,7 +200,10 @@ final class EMPhonePaneView: NSView {
         }
         let snapSize = snapButton.intrinsicContentSize
         snapButton.frame = NSRect(x: bounds.maxX - snapSize.width - 14, y: y, width: snapSize.width, height: 22)
-        let controlsX = bounds.maxX - snapSize.width - 26
+        let refreshSize = refreshButton.intrinsicContentSize
+        refreshButton.frame = NSRect(x: bounds.maxX - snapSize.width - refreshSize.width - 20, y: y,
+                                     width: refreshSize.width, height: 22)
+        let controlsX = bounds.maxX - snapSize.width - refreshSize.width - 32
         var cx = controlsX
         for button in [volumeUpButton, volumeDownButton, powerButton, homeButton].reversed() {
             let size = button.intrinsicContentSize
@@ -429,6 +451,8 @@ final class EMPhonePaneView: NSView {
         volumeUpButton.isHidden = booted
         volumeDownButton.isHidden = booted
         snapButton.isEnabled = state == .running || state == .linked
+        refreshButton.isHidden = !booted
+        refreshButton.isEnabled = booted
         vmButton.isEnabled = !booted
         needsLayout = true
     }
