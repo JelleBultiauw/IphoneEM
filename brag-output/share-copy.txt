@@ -1,0 +1,1 @@
+iPhoneEM boots real jailbroken iPhones in a window on your Mac. One or two device bays with a live screen you can tap and swipe, a file browser into the guest, and the whole firmware pipeline behind a Setup tab. MIT, on GitHub: github.com/JelleBultiauw/IphoneEM

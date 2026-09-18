@@ -8,6 +8,8 @@ a command line tool, and I kept forgetting the flags, so this puts a UI on it.
 
 ![iPhoneEM](docs/screenshot.png)
 
+There is a 20 second demo in `brag-output/brag.mp4`, and the copy for it in `brag-output/share-copy.txt`.
+
 ## What is in the window
 
 The sidebar has six shortcuts. The first one is the reason the app exists.

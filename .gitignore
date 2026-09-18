@@ -5,3 +5,6 @@ dist/
 # macOS
 .DS_Store
 *.log
+
+# video render intermediates
+brag-output/composition/snapshots/
