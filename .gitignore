@@ -1,0 +1,7 @@
+# build output
+.build/
+dist/
+
+# macOS
+.DS_Store
+*.log

@@ -1,0 +1,32 @@
+diff --git a/sources/vphone-cli/VPhoneVirtualMachine.swift b/sources/vphone-cli/VPhoneVirtualMachine.swift
+index 14c80ae..b3daec3 100644
+--- a/sources/vphone-cli/VPhoneVirtualMachine.swift
++++ b/sources/vphone-cli/VPhoneVirtualMachine.swift
+@@ -378,14 +378,25 @@ class VPhoneVirtualMachine: NSObject, VZVirtualMachineDelegate {
+ 
+     // MARK: - Delegate
+ 
++    /// Multi-VM hosts (the iPhoneEM GUI) keep running when one guest stops;
++    /// the single-VM CLI keeps its original exit-on-stop behaviour.
++    var shouldExitOnGuestStop = true
++    var onGuestStopped: ((String) -> Void)?
++
+     nonisolated func guestDidStop(_: VZVirtualMachine) {
+         print("[vphone] Guest stopped")
+-        exit(EXIT_SUCCESS)
++        Task { @MainActor in
++            if shouldExitOnGuestStop { exit(EXIT_SUCCESS) }
++            onGuestStopped?("guest stopped")
++        }
+     }
+ 
+     nonisolated func virtualMachine(_: VZVirtualMachine, didStopWithError error: Error) {
+         print("[vphone] Stopped with error: \(error)")
+-        exit(EXIT_FAILURE)
++        Task { @MainActor in
++            if shouldExitOnGuestStop { exit(EXIT_FAILURE) }
++            onGuestStopped?("\(error)")
++        }
+     }
+ 
+     nonisolated func virtualMachine(

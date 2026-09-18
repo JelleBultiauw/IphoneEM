@@ -1,0 +1,44 @@
+diff --git a/sources/vphone-cli/main.swift b/sources/vphone-cli/main.swift
+index 0b8b725..77edda4 100644
+--- a/sources/vphone-cli/main.swift
++++ b/sources/vphone-cli/main.swift
+@@ -2,6 +2,39 @@ import AppKit
+ import ArgumentParser
+ import Foundation
+ 
++// Launched from Finder (or with --gui): show the iPhoneEM window instead of
++// parsing CLI arguments. Any argument keeps the original CLI behaviour.
++func emTrace(_ message: String) {
++    guard ProcessInfo.processInfo.environment["EM_DEBUG"] != nil else { return }
++    let line = "[EM] " + message + "\n"
++    FileHandle.standardError.write(Data(line.utf8))
++    // Also append to a file so launches through LaunchServices can be traced.
++    let url = URL(fileURLWithPath: "/tmp/em_trace.log")
++    guard let data = line.data(using: .utf8) else { return }
++    if let handle = try? FileHandle(forWritingTo: url) {
++        handle.seekToEndOfFile()
++        handle.write(data)
++        try? handle.close()
++    } else {
++        try? data.write(to: url)
++    }
++}
++
++emTrace("main start argc=\(CommandLine.arguments.count) args=\(CommandLine.arguments.dropFirst().joined(separator: " "))")
++
++if CommandLine.arguments.count == 1 || CommandLine.arguments.contains("--gui") {
++    emTrace("gui branch")
++    let app = NSApplication.shared
++    // NSApplication holds its delegate weakly — keep a strong reference.
++    EMAppController.retained = EMAppController()
++    app.delegate = EMAppController.retained
++    app.setActivationPolicy(.regular)
++    emTrace("delegate set: \(String(describing: app.delegate))")
++    app.run()
++    emTrace("run() returned")
++    exit(EXIT_SUCCESS)
++}
++
+ do {
+     let command = try VPhoneCLI.parseAsRoot()
+ 
