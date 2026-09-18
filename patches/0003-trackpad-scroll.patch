@@ -1,50 +1,50 @@
 diff --git a/sources/vphone-cli/VPhoneVirtualMachineView.swift b/sources/vphone-cli/VPhoneVirtualMachineView.swift
-index 6d3f3f5..7ab4e03 100644
+index 6d3f3f5..e7b2181 100644
 --- a/sources/vphone-cli/VPhoneVirtualMachineView.swift
 +++ b/sources/vphone-cli/VPhoneVirtualMachineView.swift
-@@ -10,6 +10,13 @@ class VPhoneVirtualMachineView: VZVirtualMachineView {
-     private var currentTouchSwipeAim: Int = 0
-     private var isDragHighlightVisible = false
- 
-+    /// Two finger trackpad input: the pointer stays a pointer, the trackpad
-+    /// becomes the touch. Scroll deltas are replayed as a touch drag, so
-+    /// scrolling and two finger swipes reach the guest the way a finger would.
-+    private var scrollGestureActive = false
-+    private var scrollTouchPoint: NSPoint = .zero
-+    private var scrollGestureStart: NSPoint = .zero
-+
-     // MARK: - Private API Accessors
- 
-     /// https://github.com/wh1te4ever/super-tart-vphone-writeup/blob/main/contents/ScreenSharingVNC.swift
-@@ -164,6 +171,55 @@ class VPhoneVirtualMachineView: VZVirtualMachineView {
+@@ -164,6 +164,83 @@ class VPhoneVirtualMachineView: VZVirtualMachineView {
          }
      }
  
 +    // MARK: - Trackpad scrolling and two finger swipes
 +
++    /// Two finger trackpad input: the pointer stays a pointer, the trackpad
++    /// becomes the touch. Scroll deltas are replayed as ONE continuous touch
++    /// drag (momentum included), so scrolling moves the guest's content and a
++    /// swipe that starts at an edge performs the matching system gesture.
++    private var scrollGestureActive = false
++    private var scrollTouchPoint: NSPoint = .zero
++    private var scrollEndTask: Task<Void, Never>?
++
++    /// A gesture ends this long after the last delta. Trackpads that report
++    /// deltas without phases would otherwise turn every delta into its own
++    /// touch-down/up pair, which the guest reads as a series of taps and
++    /// ignores until the middle of the swipe.
++    private static let scrollGestureIdleNanos: UInt64 = 140_000_000
++
 +    override func scrollWheel(with event: NSEvent) {
 +        let point = convert(event.locationInWindow, from: nil)
 +        guard bounds.contains(point), virtualMachine != nil else { return }
 +
-+        // Physical finger movement, independent of the "natural scrolling" setting.
-+        var dx = event.scrollingDeltaX
-+        var dy = event.scrollingDeltaY
-+        if event.isDirectionInvertedFromDevice {
-+            dx = -dx
-+            dy = -dy
-+        }
-+        // A classic wheel reports whole lines; a trackpad reports points.
-+        if !event.hasPreciseScrollingDeltas {
-+            dx *= 14
-+            dy *= 14
-+        }
++        // Finger travel. Vertical follows the system's scrolling setting,
++        // horizontal is flipped: a phone page moves the other way than a Mac
++        // scroll view does under the same two fingers.
++        let inverted: CGFloat = event.isDirectionInvertedFromDevice ? -1 : 1
++        var dx = -inverted * event.scrollingDeltaX
++        var dy = inverted * event.scrollingDeltaY
 +
-+        let isFirstEvent = !scrollGestureActive
-+            && (event.phase == .began || (event.phase == [] && event.momentumPhase == []))
-+        if isFirstEvent {
++        // Trackpads report points, a classic wheel reports whole lines, and a
++        // phone screen is far smaller than a trackpad: both get scaled up so a
++        // normal swipe crosses the screen.
++        let gain: CGFloat = event.hasPreciseScrollingDeltas ? 1.9 : 22
++        dx *= gain
++        dy *= gain
++
++        if !scrollGestureActive {
++            // Ignore the tail of a flick whose gesture already finished.
++            if event.phase == [], event.momentumPhase != [] { return }
 +            scrollGestureActive = true
 +            scrollTouchPoint = point
-+            scrollGestureStart = point
 +            currentTouchSwipeAim = hitTestEdge(at: point)
 +            window?.makeFirstResponder(self)
 +            if !sendTouchEvent(phase: 0, localPoint: scrollTouchPoint, timestamp: event.timestamp) {
@@ -52,21 +52,35 @@ index 6d3f3f5..7ab4e03 100644
 +                return
 +            }
 +        }
-+        guard scrollGestureActive else { return }
 +
-+        scrollTouchPoint.x += dx
-+        scrollTouchPoint.y += dy
-+        scrollTouchPoint.x = max(0, min(bounds.width, scrollTouchPoint.x))
-+        scrollTouchPoint.y = max(0, min(bounds.height, scrollTouchPoint.y))
++        scrollTouchPoint.x = max(0, min(bounds.width, scrollTouchPoint.x + dx))
++        scrollTouchPoint.y = max(0, min(bounds.height, scrollTouchPoint.y + dy))
 +        _ = sendTouchEvent(phase: 1, localPoint: scrollTouchPoint, timestamp: event.timestamp)
 +
-+        let isLastEvent = event.phase == .ended || event.phase == .cancelled
-+            || (event.phase == [] && event.momentumPhase == [])
-+        if isLastEvent {
-+            _ = sendTouchEvent(phase: 3, localPoint: scrollTouchPoint, timestamp: event.timestamp)
-+            scrollGestureActive = false
-+            currentTouchSwipeAim = 0
++        if event.phase == .ended || event.phase == .cancelled {
++            finishScrollGesture()
++        } else {
++            scheduleScrollGestureEnd()
 +        }
++    }
++
++    private func scheduleScrollGestureEnd() {
++        scrollEndTask?.cancel()
++        scrollEndTask = Task { @MainActor [weak self] in
++            try? await Task.sleep(nanoseconds: Self.scrollGestureIdleNanos)
++            guard !Task.isCancelled else { return }
++            self?.finishScrollGesture()
++        }
++    }
++
++    private func finishScrollGesture() {
++        scrollEndTask?.cancel()
++        scrollEndTask = nil
++        guard scrollGestureActive else { return }
++        scrollGestureActive = false
++        _ = sendTouchEvent(phase: 3, localPoint: scrollTouchPoint,
++                           timestamp: ProcessInfo.processInfo.systemUptime)
++        currentTouchSwipeAim = 0
 +    }
 +
      // MARK: - Programmatic Touch (for automation)
