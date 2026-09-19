@@ -77,7 +77,10 @@ final class EMPhonePaneView: NSView {
         bootButton.onAction = { [weak self] in self?.onBoot?() }
         stopButton.onAction = { [weak self] in self?.onStop?() }
         snapButton.onAction = { [weak self] in self?.onSnapshot?() }
-        homeButton.onAction = { [weak self] in self?.onHome?() }
+        homeButton.onAction = { [weak self] in
+            self?.performHome()
+            self?.onHome?()
+        }
         powerButton.onAction = { [weak self] in self?.onPower?() }
         volumeUpButton.onAction = { [weak self] in self?.onVolumeUp?() }
         volumeDownButton.onAction = { [weak self] in self?.onVolumeDown?() }
@@ -104,7 +107,7 @@ final class EMPhonePaneView: NSView {
             button.iconName = symbol
         }
         homeButton.toolTip = "Home button"
-        powerButton.toolTip = "Lock / wake"
+        powerButton.toolTip = "Lock / wake (needs the guest link)"
         volumeUpButton.toolTip = "Volume up"
         volumeDownButton.toolTip = "Volume down"
         snapButton.toolTip = "Save a screenshot"
@@ -114,7 +117,7 @@ final class EMPhonePaneView: NSView {
         refreshButton.toolTip = "Reconnect the display if the screen stays black"
         homeButton.toolTip = "Home"
         recentsButton.toolTip = "App switcher"
-        powerButton.toolTip = "Lock / wake"
+        powerButton.toolTip = "Lock / wake (needs the guest link)"
 
         updateControls()
         updateStatus()
@@ -161,6 +164,23 @@ final class EMPhonePaneView: NSView {
     }
 
     var hasScreen: Bool { screenView != nil }
+
+    /// Home: the hardware home key when the guest channel is up, otherwise the
+    /// bottom edge swipe a Face ID iPhone uses. That keeps the button usable
+    /// while the phone is still booting, when vphoned is not connected yet.
+    func performHome() {
+        if let control = screenView?.control, control.isConnected {
+            control.sendHIDPress(page: 0x0C, usage: 0x40)
+            return
+        }
+        guard let view = screenView else { return }
+        let width = Double(screenWidth)
+        let height = Double(screenHeight)
+        view.injectSwipe(fromX: width * 0.5, fromY: height * 0.99,
+                         toX: width * 0.5, toY: height * 0.55,
+                         screenWidth: screenWidth, screenHeight: screenHeight,
+                         durationMs: 220)
+    }
 
     /// The Face ID app switcher gesture: a slow swipe up from the bottom edge
     /// that pauses mid screen, so the guest opens the app switcher instead of
@@ -463,7 +483,7 @@ final class EMPhonePaneView: NSView {
         stopButton.isHidden = !booted
         bootButton.isEnabled = !booted && state != .empty
         stopButton.isEnabled = booted
-        homeButton.isEnabled = linked
+        homeButton.isEnabled = booted
         powerButton.isEnabled = linked
         volumeUpButton.isEnabled = linked
         volumeDownButton.isEnabled = linked

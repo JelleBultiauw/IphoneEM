@@ -127,7 +127,19 @@ final class EMAppController: NSObject, NSApplicationDelegate {
         NSApp.activate(ignoringOtherApps: true)
     }
 
-    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { true }
+    /// Closing the window must not stop a running phone: the VM lives in this
+    /// process, so the app stays alive and the window can be brought back from
+    /// the Dock or the Window menu. Quitting (Cmd Q) still stops the phones.
+    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
+
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        if !flag { windowController?.bringToFront() }
+        return true
+    }
+
+    @objc func showWindowFromMenu() {
+        windowController?.bringToFront()
+    }
 
     func applicationWillTerminate(_ notification: Notification) {
         for slot in slots {
@@ -160,6 +172,10 @@ final class EMAppController: NSObject, NSApplicationDelegate {
         let windowItem = NSMenuItem()
         mainMenu.addItem(windowItem)
         let windowMenu = NSMenu(title: "Window")
+        let showItem = NSMenuItem(title: "Show iPhoneEM Window", action: #selector(showWindowFromMenu), keyEquivalent: "1")
+        showItem.target = self
+        windowMenu.addItem(showItem)
+        windowMenu.addItem(.separator())
         windowMenu.addItem(withTitle: "Minimize", action: #selector(NSWindow.performMiniaturize(_:)), keyEquivalent: "m")
         windowMenu.addItem(withTitle: "Zoom", action: #selector(NSWindow.performZoom(_:)), keyEquivalent: "")
         windowItem.submenu = windowMenu
@@ -519,8 +535,8 @@ final class EMAppController: NSObject, NSApplicationDelegate {
         pane.onBoot = { [weak self] in self?.boot(slot: slot) }
         pane.onStop = { [weak self] in self?.stop(slot: slot) }
         pane.onHome = { [weak self] in
-            guard let control = self?.slots[slot].control, control.isConnected else { return }
-            control.sendHIDPress(page: 0x0C, usage: 0x40)
+            _ = self
+            EMLog.shared.write("phone \(slot + 1): home")
         }
         pane.onPower = { [weak self] in
             guard let control = self?.slots[slot].control, control.isConnected else { return }

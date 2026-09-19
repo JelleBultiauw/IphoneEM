@@ -89,6 +89,13 @@ final class EMMainWindowController: NSObject {
         }
     }
 
+    /// Bring the existing window back after it was closed.
+    func bringToFront() {
+        guard let window else { return }
+        window.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+    }
+
     private func show(page: EMPage) {
         currentPage = page
         sidebar.selectedPage = page
