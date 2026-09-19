@@ -187,12 +187,7 @@ final class EMPhonePaneView: NSView {
     /// going home. Works without the guest control channel.
     func showAppSwitcher() {
         guard let view = screenView else { return }
-        let width = Double(screenWidth)
-        let height = Double(screenHeight)
-        view.injectSwipe(fromX: width * 0.5, fromY: height * 0.985,
-                         toX: width * 0.5, toY: height * 0.42,
-                         screenWidth: screenWidth, screenHeight: screenHeight,
-                         durationMs: 900)
+        view.injectAppSwitcher(screenWidth: screenWidth, screenHeight: screenHeight)
     }
 
     /// Re-attach the virtual machine to the display view. After a guest reboot
