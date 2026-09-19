@@ -534,6 +534,11 @@ final class EMAppController: NSObject, NSApplicationDelegate {
             guard let control = self?.slots[slot].control, control.isConnected else { return }
             control.sendHIDPress(page: 0x0C, usage: 0xEA)
         }
+        pane.onRecents = { [weak self] in
+            guard let pane = self?.slots[slot].pane, pane.hasScreen else { return }
+            EMLog.shared.write("phone \(slot + 1): app switcher")
+            pane.showAppSwitcher()
+        }
         pane.onSnapshot = { [weak self] in
             guard let self else { return }
             self.setActiveSlot(slot)

@@ -26,6 +26,7 @@ final class EMPhonePaneView: NSView {
     var onSnapshot: (() -> Void)?
     var onPickVM: ((NSView) -> Void)?
     var onDisplayRefresh: (() -> Void)?
+    var onRecents: (() -> Void)?
     var onSelect: (() -> Void)?
 
     private(set) var screenView: VPhoneVirtualMachineView?
@@ -40,6 +41,7 @@ final class EMPhonePaneView: NSView {
     private let volumeDownButton: EMButton
     private let vmButton: EMButton
     private let refreshButton: EMButton
+    private let recentsButton: EMButton
 
     private var screenWidth = 1290
     private var screenHeight = 2796
@@ -61,6 +63,7 @@ final class EMPhonePaneView: NSView {
         volumeDownButton = EMButton(kind: .quiet, compact: true, square: true)
         vmButton = EMButton(title: "Select VM", kind: .quiet, compact: true)
         refreshButton = EMButton(kind: .quiet, compact: true, square: true)
+        recentsButton = EMButton(kind: .quiet, compact: true, square: true)
         super.init(frame: .zero)
         wantsLayer = true
 
@@ -68,7 +71,7 @@ final class EMPhonePaneView: NSView {
         screenHolder.wantsLayer = true
         screenHolder.layer?.masksToBounds = true
 
-        buttons = [bootButton, stopButton, snapButton, homeButton, powerButton, volumeUpButton, volumeDownButton, vmButton, refreshButton]
+        buttons = [bootButton, stopButton, snapButton, homeButton, powerButton, volumeUpButton, volumeDownButton, vmButton, refreshButton, recentsButton]
         for button in buttons { addSubview(button) }
 
         bootButton.onAction = { [weak self] in self?.onBoot?() }
@@ -78,6 +81,9 @@ final class EMPhonePaneView: NSView {
         powerButton.onAction = { [weak self] in self?.onPower?() }
         volumeUpButton.onAction = { [weak self] in self?.onVolumeUp?() }
         volumeDownButton.onAction = { [weak self] in self?.onVolumeDown?() }
+        recentsButton.onAction = { [weak self] in
+            self?.onRecents?()
+        }
         refreshButton.onAction = { [weak self] in
             guard let self else { return }
             self.refreshDisplay()
@@ -92,6 +98,8 @@ final class EMPhonePaneView: NSView {
             (bootButton, "power"), (stopButton, "stop.fill"), (snapButton, "camera"),
             (homeButton, "circle.dotted"), (powerButton, "lock"), (volumeUpButton, "speaker.plus"),
             (volumeDownButton, "speaker.minus"), (refreshButton, "arrow.clockwise"),
+            (homeButton, "house"),
+            (recentsButton, "square.on.square"),
         ] {
             button.iconName = symbol
         }
@@ -104,6 +112,9 @@ final class EMPhonePaneView: NSView {
         stopButton.toolTip = "Stop this machine"
         vmButton.toolTip = "Choose the virtual machine in this bay"
         refreshButton.toolTip = "Reconnect the display if the screen stays black"
+        homeButton.toolTip = "Home"
+        recentsButton.toolTip = "App switcher"
+        powerButton.toolTip = "Lock / wake"
 
         updateControls()
         updateStatus()
@@ -151,6 +162,19 @@ final class EMPhonePaneView: NSView {
 
     var hasScreen: Bool { screenView != nil }
 
+    /// The Face ID app switcher gesture: a slow swipe up from the bottom edge
+    /// that pauses mid screen, so the guest opens the app switcher instead of
+    /// going home. Works without the guest control channel.
+    func showAppSwitcher() {
+        guard let view = screenView else { return }
+        let width = Double(screenWidth)
+        let height = Double(screenHeight)
+        view.injectSwipe(fromX: width * 0.5, fromY: height * 0.985,
+                         toX: width * 0.5, toY: height * 0.42,
+                         screenWidth: screenWidth, screenHeight: screenHeight,
+                         durationMs: 900)
+    }
+
     /// Re-attach the virtual machine to the display view. After a guest reboot
     /// (or a display sleep) the view can stop painting and show black even
     /// though the guest is fine; assigning the machine again reconnects it.
@@ -190,7 +214,7 @@ final class EMPhonePaneView: NSView {
         let headerY = bounds.maxY - headerHeight
         vmButton.frame = NSRect(x: 112, y: headerY + 11, width: min(220, max(120, vmButton.intrinsicContentSize.width)), height: 22)
 
-        // footer controls
+        // footer controls: boot/stop on the left, device controls on the right
         let y: CGFloat = 11
         var x: CGFloat = 14
         for button in [bootButton, stopButton] where !button.isHidden {
@@ -198,17 +222,14 @@ final class EMPhonePaneView: NSView {
             button.frame = NSRect(x: x, y: y, width: size.width, height: 22)
             x += size.width + 6
         }
-        let snapSize = snapButton.intrinsicContentSize
-        snapButton.frame = NSRect(x: bounds.maxX - snapSize.width - 14, y: y, width: snapSize.width, height: 22)
-        let refreshSize = refreshButton.intrinsicContentSize
-        refreshButton.frame = NSRect(x: bounds.maxX - snapSize.width - refreshSize.width - 20, y: y,
-                                     width: refreshSize.width, height: 22)
-        let controlsX = bounds.maxX - snapSize.width - refreshSize.width - 32
-        var cx = controlsX
-        for button in [volumeUpButton, volumeDownButton, powerButton, homeButton].reversed() {
+        var rightX = bounds.maxX - 14
+        let rightGroup = [snapButton, refreshButton, powerButton, volumeUpButton,
+                          volumeDownButton, homeButton, recentsButton]
+        for button in rightGroup where !button.isHidden {
             let size = button.intrinsicContentSize
-            cx -= size.width + 4
-            button.frame = NSRect(x: cx, y: y, width: size.width, height: 22)
+            rightX -= size.width
+            button.frame = NSRect(x: rightX, y: y, width: size.width, height: 22)
+            rightX -= 4
         }
     }
 
@@ -446,10 +467,14 @@ final class EMPhonePaneView: NSView {
         powerButton.isEnabled = linked
         volumeUpButton.isEnabled = linked
         volumeDownButton.isEnabled = linked
-        homeButton.isHidden = booted
-        powerButton.isHidden = booted
-        volumeUpButton.isHidden = booted
-        volumeDownButton.isHidden = booted
+        recentsButton.isEnabled = booted
+        recentsButton.isHidden = !booted
+        // keep Home, Lock and volume visible once a phone is running: they are
+        // the quick actions people reach for, and Home also wakes the display
+        homeButton.isHidden = !booted
+        powerButton.isHidden = !booted
+        volumeUpButton.isHidden = !booted
+        volumeDownButton.isHidden = !booted
         snapButton.isEnabled = state == .running || state == .linked
         refreshButton.isHidden = !booted
         refreshButton.isEnabled = booted
