@@ -1140,6 +1140,7 @@ final class EMLocationPage: EMPageView, MKMapViewDelegate {
 
     private final class PhonePanel {
         let slot: Int
+        let box: NSView
         let map: EMSlotMapView
         let pin = MKPointAnnotation()
         let status: NSTextField
@@ -1151,10 +1152,11 @@ final class EMLocationPage: EMPageView, MKMapViewDelegate {
         let stopButton: EMButton
         var presetButtons: [EMButton] = []
 
-        init(slot: Int, map: EMSlotMapView, status: NSTextField, hint: NSTextField,
+        init(slot: Int, box: NSView, map: EMSlotMapView, status: NSTextField, hint: NSTextField,
              latitude: NSTextField, longitude: NSTextField,
              setButton: EMButton, followButton: EMButton, stopButton: EMButton) {
             self.slot = slot
+            self.box = box
             self.map = map
             self.status = status
             self.hint = hint
@@ -1176,7 +1178,7 @@ final class EMLocationPage: EMPageView, MKMapViewDelegate {
     private var panels: [PhonePanel] = []
 
     init(app: EMAppController?) {
-        super.init(app: app, title: "Location", subtitle: "Per phone: type coordinates, drop a pin on the map, or follow this Mac")
+        super.init(app: app, title: "Location", subtitle: "For the selected phone: type coordinates, drop a pin, or follow this Mac")
 
         let column = NSStackView()
         column.orientation = .vertical
@@ -1247,7 +1249,7 @@ final class EMLocationPage: EMPageView, MKMapViewDelegate {
 
             column.addArrangedSubview(panel)
             panel.widthAnchor.constraint(equalTo: column.widthAnchor).isActive = true
-            panels.append(PhonePanel(slot: slot, map: map, status: status, hint: hint,
+            panels.append(PhonePanel(slot: slot, box: panel, map: map, status: status, hint: hint,
                                      latitude: latitude, longitude: longitude, setButton: setButton,
                                      followButton: followButton, stopButton: stopButton))
             panels[panels.count - 1].presetButtons = presetButtons
@@ -1332,6 +1334,8 @@ final class EMLocationPage: EMPageView, MKMapViewDelegate {
     override func refresh() {
         guard let app else { return }
         for panel in panels {
+            // only the selected bay, like Files and Apps
+            panel.box.isHidden = panel.slot != app.activeSlotIndex
             let info = app.locationStatus(slot: panel.slot)
             panel.status.stringValue = info.text
             panel.status.textColor = info.color

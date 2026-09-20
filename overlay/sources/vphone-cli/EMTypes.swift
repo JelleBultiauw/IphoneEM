@@ -36,6 +36,14 @@ enum EMPage: Int, CaseIterable {
         }
     }
 
+    /// Phone bound shortcuts act on the selected bay; the others are shared.
+    var isPhoneBound: Bool {
+        switch self {
+        case .phones, .files, .apps, .location: true
+        case .screenshots, .setup, .info: false
+        }
+    }
+
     var symbolName: String {
         switch self {
         case .phones: "iphone.gen3"

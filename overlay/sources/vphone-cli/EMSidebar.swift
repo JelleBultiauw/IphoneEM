@@ -164,7 +164,15 @@ final class EMSidebarView: NSView {
         y -= 26
 
         pageItems = []
+        var previousWasPhoneBound = true
         for page in EMPage.allCases {
+            if !page.isPhoneBound && previousWasPhoneBound {
+                // everything above acts on the selected phone, everything below is shared
+                EMDraw.line(from: NSPoint(x: rowInset + 6, y: y - 5), to: NSPoint(x: bounds.maxX - rowInset - 6, y: y - 5),
+                            color: NSColor(white: 1, alpha: 0.12))
+                y -= 12
+            }
+            previousWasPhoneBound = page.isPhoneBound
             let row = NSRect(x: rowInset, y: y - 30, width: bounds.width - rowInset * 2, height: 28)
             pageItems.append(Item(rect: row, page: page))
             let selected = page == selectedPage
