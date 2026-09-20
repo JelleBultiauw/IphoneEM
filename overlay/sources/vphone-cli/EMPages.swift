@@ -1,5 +1,6 @@
 import AppKit
 import Foundation
+import MapKit
 import UniformTypeIdentifiers
 import VPhoneCore
 
@@ -1123,8 +1124,14 @@ final class EMInfoPage: EMPageView {
 
 // MARK: - LOCATION
 
+/// A map that knows which phone bay it belongs to.
 @MainActor
-final class EMLocationPage: EMPageView {
+final class EMSlotMapView: MKMapView {
+    var slot = 0
+}
+
+@MainActor
+final class EMLocationPage: EMPageView, MKMapViewDelegate {
     private struct Preset {
         let name: String
         let latitude: Double
@@ -1133,6 +1140,8 @@ final class EMLocationPage: EMPageView {
 
     private final class PhonePanel {
         let slot: Int
+        let map: EMSlotMapView
+        let pin = MKPointAnnotation()
         let status: NSTextField
         let hint: NSTextField
         let latitude: NSTextField
@@ -1142,10 +1151,11 @@ final class EMLocationPage: EMPageView {
         let stopButton: EMButton
         var presetButtons: [EMButton] = []
 
-        init(slot: Int, title: String, status: NSTextField, hint: NSTextField,
+        init(slot: Int, map: EMSlotMapView, status: NSTextField, hint: NSTextField,
              latitude: NSTextField, longitude: NSTextField,
              setButton: EMButton, followButton: EMButton, stopButton: EMButton) {
             self.slot = slot
+            self.map = map
             self.status = status
             self.hint = hint
             self.latitude = latitude
@@ -1166,7 +1176,7 @@ final class EMLocationPage: EMPageView {
     private var panels: [PhonePanel] = []
 
     init(app: EMAppController?) {
-        super.init(app: app, title: "Location", subtitle: "Per phone: set a fixed location, or follow this Mac")
+        super.init(app: app, title: "Location", subtitle: "Per phone: type coordinates, drop a pin on the map, or follow this Mac")
 
         let column = NSStackView()
         column.orientation = .vertical
@@ -1195,26 +1205,49 @@ final class EMLocationPage: EMPageView {
                 let button = EMButton(title: preset.name, compact: true)
                 button.onAction = { [weak self] in
                     guard let self, slot < self.panels.count else { return }
-                    self.panels[slot].latitude.stringValue = String(format: "%.4f", preset.latitude)
-                    self.panels[slot].longitude.stringValue = String(format: "%.4f", preset.longitude)
-                    self.app?.applyLocation(slot: slot, latitude: preset.latitude, longitude: preset.longitude)
-                    self.refresh()
+                    let coordinate = CLLocationCoordinate2D(latitude: preset.latitude, longitude: preset.longitude)
+                    self.dropPin(slot: slot, coordinate: coordinate, apply: true)
+                    self.panels[slot].map.setRegion(MKCoordinateRegion(
+                        center: coordinate,
+                        span: MKCoordinateSpan(latitudeDelta: 0.3, longitudeDelta: 0.3)), animated: true)
                 }
                 presetButtons.append(button)
                 views.append(button)
             }
             let presetRow = EMUI.toolbar(views, height: 30)
 
+            let map = EMSlotMapView()
+            map.slot = slot
+            map.delegate = self
+            map.translatesAutoresizingMaskIntoConstraints = false
+            map.heightAnchor.constraint(equalToConstant: 250).isActive = true
+            map.pointOfInterestFilter = .excludingAll
+            map.showsCompass = false
+            map.showsScale = false
+            map.wantsLayer = true
+            map.layer?.cornerRadius = 8
+            map.layer?.masksToBounds = true
+            map.layer?.borderWidth = 1
+            map.layer?.borderColor = EMPalette.border.cgColor
+            map.appearance = NSAppearance(named: .darkAqua)
+            map.setRegion(MKCoordinateRegion(
+                center: CLLocationCoordinate2D(latitude: Self.presets[0].latitude, longitude: Self.presets[0].longitude),
+                span: MKCoordinateSpan(latitudeDelta: 0.6, longitudeDelta: 0.6)), animated: false)
+            let click = NSClickGestureRecognizer(target: self, action: #selector(mapClicked(_:)))
+            map.addGestureRecognizer(click)
+
             let panel = EMUI.panel(title: "Phone \(slot + 1)", views: [
                 status,
                 fieldsRow,
                 presetRow,
+                EMText.caption("Click the map to drop a pin, drag the pin to fine tune", size: 10.5),
+                map,
                 hint,
             ])
 
             column.addArrangedSubview(panel)
             panel.widthAnchor.constraint(equalTo: column.widthAnchor).isActive = true
-            panels.append(PhonePanel(slot: slot, title: "Phone \(slot + 1)", status: status, hint: hint,
+            panels.append(PhonePanel(slot: slot, map: map, status: status, hint: hint,
                                      latitude: latitude, longitude: longitude, setButton: setButton,
                                      followButton: followButton, stopButton: stopButton))
             panels[panels.count - 1].presetButtons = presetButtons
@@ -1256,6 +1289,27 @@ final class EMLocationPage: EMPageView {
         panels[slot].hint.textColor = EMPalette.warn
     }
 
+    @objc private func mapClicked(_ gesture: NSClickGestureRecognizer) {
+        guard let map = gesture.view as? EMSlotMapView else { return }
+        let coordinate = map.convert(gesture.location(in: map), toCoordinateFrom: map)
+        dropPin(slot: map.slot, coordinate: coordinate, apply: true)
+    }
+
+    private func dropPin(slot: Int, coordinate: CLLocationCoordinate2D, apply: Bool) {
+        guard slot < panels.count else { return }
+        let panel = panels[slot]
+        panel.pin.coordinate = coordinate
+        if panel.map.annotations.isEmpty {
+            panel.pin.title = "Phone \(slot + 1)"
+            panel.map.addAnnotation(panel.pin)
+        }
+        panel.latitude.stringValue = String(format: "%.4f", coordinate.latitude)
+        panel.longitude.stringValue = String(format: "%.4f", coordinate.longitude)
+        guard apply else { return }
+        app?.applyLocation(slot: slot, latitude: coordinate.latitude, longitude: coordinate.longitude)
+        refresh()
+    }
+
     override func refresh() {
         guard let app else { return }
         for panel in panels {
@@ -1267,6 +1321,13 @@ final class EMLocationPage: EMPageView {
             panel.followButton.isEnabled = connected
             panel.stopButton.isEnabled = info.active
             for button in panel.presetButtons { button.isEnabled = connected }
+            if case let .fixed(latitude, longitude) = app.slots[panel.slot].location,
+               abs(panel.pin.coordinate.latitude - latitude) > 0.00005
+                   || abs(panel.pin.coordinate.longitude - longitude) > 0.00005 {
+                dropPin(slot: panel.slot,
+                        coordinate: CLLocationCoordinate2D(latitude: latitude, longitude: longitude),
+                        apply: false)
+            }
             if !info.connected {
                 panel.hint.stringValue = "Boot this phone first: the location is pushed into the guest over the control channel."
                 panel.hint.textColor = EMPalette.textTertiary
