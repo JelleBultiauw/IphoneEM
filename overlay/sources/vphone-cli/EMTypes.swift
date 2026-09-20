@@ -7,6 +7,7 @@ enum EMPage: Int, CaseIterable {
     case phones
     case files
     case apps
+    case location
     case screenshots
     case setup
     case info
@@ -16,6 +17,7 @@ enum EMPage: Int, CaseIterable {
         case .phones: "Phones"
         case .files: "Files"
         case .apps: "Apps"
+        case .location: "Location"
         case .screenshots: "Screenshots"
         case .setup: "Setup"
         case .info: "Info"
@@ -27,6 +29,7 @@ enum EMPage: Int, CaseIterable {
         case .phones: "Live device bays"
         case .files: "iPhone storage"
         case .apps: "Installed applications"
+        case .location: "Location simulation"
         case .screenshots: "Captured screens"
         case .setup: "Library, host checks and console"
         case .info: "Connection details and paths"
@@ -38,6 +41,7 @@ enum EMPage: Int, CaseIterable {
         case .phones: "iphone.gen3"
         case .files: "folder"
         case .apps: "square.grid.2x2"
+        case .location: "location"
         case .screenshots: "photo.on.rectangle.angled"
         case .setup: "slider.horizontal.3"
         case .info: "info.circle"

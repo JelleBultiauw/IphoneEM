@@ -1,5 +1,5 @@
 diff --git a/sources/vphone-cli/VPhoneVirtualMachineView.swift b/sources/vphone-cli/VPhoneVirtualMachineView.swift
-index 6d3f3f5..e7b2181 100644
+index 6d3f3f5..249443a 100644
 --- a/sources/vphone-cli/VPhoneVirtualMachineView.swift
 +++ b/sources/vphone-cli/VPhoneVirtualMachineView.swift
 @@ -164,6 +164,83 @@ class VPhoneVirtualMachineView: VZVirtualMachineView {
@@ -86,3 +86,47 @@ index 6d3f3f5..e7b2181 100644
      // MARK: - Programmatic Touch (for automation)
  
      /// Convert screenshot pixel coordinates to NSView local coordinates.
+@@ -207,6 +284,43 @@ class VPhoneVirtualMachineView: VZVirtualMachineView {
+         }
+     }
+ 
++    /// The Face ID app switcher: swipe up from the bottom edge and *hold* mid
++    /// screen. A plain fast swipe goes home instead, which is why the pause is
++    /// the part that matters. Runs without the guest control channel.
++    func injectAppSwitcher(screenWidth: Int, screenHeight: Int, holdMs: Int = 750) {
++        let x = Double(screenWidth) * 0.5
++        let start = pixelToLocal(pixelX: x, pixelY: Double(screenHeight) * 0.995,
++                                 screenWidth: screenWidth, screenHeight: screenHeight)
++        let end = pixelToLocal(pixelX: x, pixelY: Double(screenHeight) * 0.45,
++                               screenWidth: screenWidth, screenHeight: screenHeight)
++
++        currentTouchSwipeAim = hitTestEdge(at: start)
++        if let down = synthesizeMouseEvent(type: .leftMouseDown, at: convert(start, to: nil)) {
++            mouseDown(with: down)
++        }
++
++        let steps = 12
++        let stepDelay = 0.02
++        for step in 1...steps {
++            let t = Double(step) / Double(steps)
++            let point = NSPoint(x: start.x, y: start.y + (end.y - start.y) * t)
++            let windowPoint = convert(point, to: nil)
++            DispatchQueue.main.asyncAfter(deadline: .now() + stepDelay * Double(step)) { [weak self] in
++                guard let self, let drag = self.synthesizeMouseEvent(type: .leftMouseDragged, at: windowPoint)
++                else { return }
++                self.mouseDragged(with: drag)
++            }
++        }
++
++        // keep the touch down and still, so iOS reads it as the hold
++        let upAt = stepDelay * Double(steps) + Double(holdMs) / 1000.0
++        DispatchQueue.main.asyncAfter(deadline: .now() + upAt) { [weak self] in
++            guard let self, let up = self.synthesizeMouseEvent(type: .leftMouseUp, at: self.convert(end, to: nil))
++            else { return }
++            self.mouseUp(with: up)
++        }
++    }
++
+     /// Inject a swipe from one pixel coordinate to another.
+     func injectSwipe(
+         fromX: Double, fromY: Double, toX: Double, toY: Double,

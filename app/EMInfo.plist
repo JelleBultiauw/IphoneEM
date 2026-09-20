@@ -22,6 +22,10 @@
 	<string>15.0</string>
 	<key>LSApplicationCategoryType</key>
 	<string>public.app-category.utilities</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>iPhoneEM forwards this Mac's location to the simulated phone when you ask it to.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>iPhoneEM forwards this Mac's location to the simulated phone when you ask it to.</string>
 	<key>NSHighResolutionCapable</key>
 	<true/>
 	<key>NSSupportsAutomaticTermination</key>

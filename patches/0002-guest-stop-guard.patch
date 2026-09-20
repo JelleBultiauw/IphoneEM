@@ -1,8 +1,36 @@
 diff --git a/sources/vphone-cli/VPhoneVirtualMachine.swift b/sources/vphone-cli/VPhoneVirtualMachine.swift
-index 14c80ae..b3daec3 100644
+index 14c80ae..89dfa0e 100644
 --- a/sources/vphone-cli/VPhoneVirtualMachine.swift
 +++ b/sources/vphone-cli/VPhoneVirtualMachine.swift
-@@ -378,14 +378,25 @@ class VPhoneVirtualMachine: NSObject, VZVirtualMachineDelegate {
+@@ -158,6 +158,27 @@ class VPhoneVirtualMachine: NSObject, VZVirtualMachineDelegate {
+             options.memorySize, VZVirtualMachineConfiguration.minimumAllowedMemorySize
+         )
+ 
++        // Keep the full guest-visible memorySize while optionally allowing the
++        // host to overcommit backing pages when multiple phones are running.
++        // This is a private Virtualization.framework hook (macOS 26+); it is
++        // opt-in because Apple does not document its boot-time guarantees.
++        let overcommitEnvironment = ProcessInfo.processInfo.environment["VPHONE_MEMORY_OVERCOMMIT"]
++        let overcommitEnabled: Bool
++        if let overcommitEnvironment {
++            overcommitEnabled = ["1", "true", "yes", "on"].contains(overcommitEnvironment.lowercased())
++        } else {
++            overcommitEnabled = UserDefaults.standard.bool(forKey: "iPhoneEM.memoryOvercommit")
++        }
++        if overcommitEnabled {
++            let overcommitSelector = NSSelectorFromString("_setMemoryOvercommitmentAllowed:")
++            if config.responds(to: overcommitSelector) {
++                Dynamic(config)._setMemoryOvercommitmentAllowed(true)
++                print("[vphone] Host memory overcommit enabled (guest memory unchanged)")
++            } else {
++                print("[vphone] Host memory overcommit requested but unavailable; using standard allocation")
++            }
++        }
++
+         // Display
+         let gfx = VZMacGraphicsDeviceConfiguration()
+         gfx.displays = [
+@@ -378,14 +399,25 @@ class VPhoneVirtualMachine: NSObject, VZVirtualMachineDelegate {
  
      // MARK: - Delegate
  

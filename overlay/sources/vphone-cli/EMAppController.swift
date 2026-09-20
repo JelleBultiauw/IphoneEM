@@ -38,6 +38,19 @@ enum EMShell {
     }
 }
 
+// MARK: - Location state
+
+enum EMLocationMode: Equatable {
+    case off
+    case fixed(latitude: Double, longitude: Double)
+    case followingMac
+
+    var isActive: Bool {
+        if case .off = self { return false }
+        return true
+    }
+}
+
 // MARK: - Phone slot
 
 @MainActor
@@ -55,6 +68,9 @@ final class EMPhoneSlot {
     /// False when the bundle has no restored firmware (empty Disk.img): the VM
     /// boots into nothing, which otherwise looks like a black screen bug.
     var hasFirmware = true
+    /// Location simulation state for this phone.
+    var location: EMLocationMode = .off
+    var locationProvider: VPhoneLocationProvider?
 
     init(index: Int) { self.index = index }
 
@@ -401,6 +417,15 @@ final class EMAppController: NSObject, NSApplicationDelegate {
                 // a guest reboot reconnects the control channel: re-attach the
                 // display too, otherwise the bay can stay black after a restart
                 slot.pane?.refreshDisplay()
+                // a guest reboot also forgets an injected location
+                switch slot.location {
+                case .off:
+                    break
+                case let .fixed(latitude, longitude):
+                    slot.locationProvider?.sendPreset(name: "iPhoneEM", latitude: latitude, longitude: longitude)
+                case .followingMac:
+                    slot.locationProvider?.startForwarding()
+                }
                 EMLog.shared.write("phone \(index + 1): guest link online (caps: \(caps.joined(separator: ",")))")
                 if let ip = slot.control?.guestIP {
                     EMLog.shared.write("phone \(index + 1): guest ip \(ip), ssh -p 22222 mobile@\(ip)")
@@ -428,6 +453,85 @@ final class EMAppController: NSObject, NSApplicationDelegate {
             pane.attach(vm: vm.virtualMachine, control: control, keyHelper: keyHelper,
                         width: options.screenWidth, height: options.screenHeight, scale: options.screenScale)
         }
+    }
+
+    // MARK: Location simulation
+
+    struct LocationStatus {
+        var text: String
+        var color: NSColor
+        var connected: Bool
+        var supported: Bool
+        var active: Bool
+    }
+
+    func locationStatus(slot index: Int) -> LocationStatus {
+        let slot = slots[index]
+        let connected = slot.control?.isConnected == true
+        let supported = slot.control?.guestCaps.contains("location") ?? false
+        switch slot.location {
+        case .off:
+            return LocationStatus(text: "off", color: EMPalette.textSecondary,
+                                  connected: connected, supported: supported, active: false)
+        case let .fixed(latitude, longitude):
+            return LocationStatus(text: String(format: "%.4f, %.4f", latitude, longitude),
+                                  color: EMPalette.ok, connected: connected, supported: supported, active: true)
+        case .followingMac:
+            return LocationStatus(text: "following this Mac", color: EMPalette.ok,
+                                  connected: connected, supported: supported, active: true)
+        }
+    }
+
+    private func locationProvider(for slot: EMPhoneSlot) -> VPhoneLocationProvider? {
+        guard let control = slot.control else { return nil }
+        if let provider = slot.locationProvider { return provider }
+        let provider = VPhoneLocationProvider(control: control)
+        slot.locationProvider = provider
+        return provider
+    }
+
+    func applyLocation(slot index: Int, latitude: Double, longitude: Double) {
+        let slot = slots[index]
+        guard let control = slot.control, control.isConnected else {
+            EMLog.shared.write("phone \(index + 1): boot the phone before setting a location")
+            return
+        }
+        guard control.guestCaps.contains("location") else {
+            EMLog.shared.write("phone \(index + 1): guest does not support location simulation")
+            return
+        }
+        guard let provider = locationProvider(for: slot) else { return }
+        provider.stopForwarding()
+        provider.sendPreset(name: "iPhoneEM", latitude: latitude, longitude: longitude)
+        slot.location = .fixed(latitude: latitude, longitude: longitude)
+        EMLog.shared.write(String(format: "phone %d: location set to %.4f, %.4f", index + 1, latitude, longitude))
+        refreshUI()
+    }
+
+    func followMacLocation(slot index: Int) {
+        let slot = slots[index]
+        guard let control = slot.control, control.isConnected else {
+            EMLog.shared.write("phone \(index + 1): boot the phone before following this Mac")
+            return
+        }
+        guard control.guestCaps.contains("location") else {
+            EMLog.shared.write("phone \(index + 1): guest does not support location simulation")
+            return
+        }
+        guard let provider = locationProvider(for: slot) else { return }
+        provider.startForwarding()
+        slot.location = .followingMac
+        EMLog.shared.write("phone \(index + 1): following this Mac's location (macOS asks for permission the first time)")
+        refreshUI()
+    }
+
+    func stopLocation(slot index: Int) {
+        let slot = slots[index]
+        slot.locationProvider?.stopForwarding()
+        slot.control?.sendLocationStop()
+        slot.location = .off
+        EMLog.shared.write("phone \(index + 1): location simulation stopped")
+        refreshUI()
     }
 
     // MARK: Screenshots

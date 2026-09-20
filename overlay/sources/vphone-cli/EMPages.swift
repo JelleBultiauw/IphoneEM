@@ -666,6 +666,15 @@ final class EMSetupPage: EMPageView {
     private let preflightButton = EMButton(title: "Run Host Checks", kind: .primary, compact: true)
     private let refreshButton = EMButton(title: "Rescan", compact: true)
     private let clearButton = EMButton(title: "Clear", compact: true)
+    private let memoryOvercommitButton: NSButton = {
+        let button = NSButton(checkboxWithTitle: "Allow host overcommit (guest RAM unchanged)", target: nil,
+                              action: nil)
+        button.font = EMFont.ui(11.5)
+        button.contentTintColor = EMPalette.textSecondary
+        button.state = UserDefaults.standard.bool(forKey: "iPhoneEM.memoryOvercommit") ? .on : .off
+        button.toolTip = "Experimental macOS setting. It keeps each phone's configured RAM and may reduce duplicated host backing pages."
+        return button
+    }()
 
     private let sipLabel = EMText.label("SIP: checking...", size: 11.5)
     private let amfiLabel = EMText.label("AMFI: checking...", size: 11.5)
@@ -683,6 +692,7 @@ final class EMSetupPage: EMPageView {
 
         let hostPanel = EMUI.panel(title: "Host requirements", views: [
             sipLabel, amfiLabel, engineLabel,
+            memoryOvercommitButton,
             EMUI.toolbar([preflightButton, refreshButton], height: 34),
         ])
         let libraryPanel = EMUI.panel(title: "Virtual machines", views: [
@@ -746,6 +756,8 @@ final class EMSetupPage: EMPageView {
             self?.load()
         }
         clearButton.onAction = { [weak self] in self?.console.clear() }
+        memoryOvercommitButton.target = self
+        memoryOvercommitButton.action = #selector(memoryOvercommitChanged(_:))
         vmList.listView.emptyText = "No machines yet. Create one above."
         vmList.listView.showsDetail = false
         vmList.listView.columnWidths = [80, 150]
@@ -769,6 +781,12 @@ final class EMSetupPage: EMPageView {
 
     @objc private func nameChanged() {
         updateButtons()
+    }
+
+    @objc private func memoryOvercommitChanged(_ sender: NSButton) {
+        let enabled = sender.state == .on
+        UserDefaults.standard.set(enabled, forKey: "iPhoneEM.memoryOvercommit")
+        EMLog.shared.write("host memory overcommit \(enabled ? "enabled" : "disabled"); applies to the next phone boot")
     }
 
     override func refresh() {
@@ -1100,6 +1118,169 @@ final class EMInfoPage: EMPageView {
             }
         }
     }
+}
+
+
+// MARK: - LOCATION
+
+@MainActor
+final class EMLocationPage: EMPageView {
+    private struct Preset {
+        let name: String
+        let latitude: Double
+        let longitude: Double
+    }
+
+    private final class PhonePanel {
+        let slot: Int
+        let status: NSTextField
+        let hint: NSTextField
+        let latitude: NSTextField
+        let longitude: NSTextField
+        let setButton: EMButton
+        let followButton: EMButton
+        let stopButton: EMButton
+        var presetButtons: [EMButton] = []
+
+        init(slot: Int, title: String, status: NSTextField, hint: NSTextField,
+             latitude: NSTextField, longitude: NSTextField,
+             setButton: EMButton, followButton: EMButton, stopButton: EMButton) {
+            self.slot = slot
+            self.status = status
+            self.hint = hint
+            self.latitude = latitude
+            self.longitude = longitude
+            self.setButton = setButton
+            self.followButton = followButton
+            self.stopButton = stopButton
+        }
+    }
+
+    private static let presets: [Preset] = [
+        Preset(name: "Ghent", latitude: 51.0543, longitude: 3.7174),
+        Preset(name: "Cupertino", latitude: 37.3349, longitude: -122.0090),
+        Preset(name: "New York", latitude: 40.7128, longitude: -74.0060),
+        Preset(name: "London", latitude: 51.5072, longitude: -0.1276),
+    ]
+
+    private var panels: [PhonePanel] = []
+
+    init(app: EMAppController?) {
+        super.init(app: app, title: "Location", subtitle: "Per phone: set a fixed location, or follow this Mac")
+
+        let column = NSStackView()
+        column.orientation = .vertical
+        column.spacing = 12
+        column.alignment = .leading
+        column.translatesAutoresizingMaskIntoConstraints = false
+
+        for slot in 0..<2 {
+            let status = EMText.label("off", size: 11.5, mono: true)
+            let hint = EMText.label("", size: 10.5, color: EMPalette.textTertiary)
+            let latitude = EMUI.field(slot == 0 ? "51.0543" : "51.0543", width: 120)
+            let longitude = EMUI.field(slot == 0 ? "3.7174" : "3.7174", width: 120)
+            let setButton = EMButton(title: "Set Location", kind: .primary, compact: true)
+            let followButton = EMButton(title: "Follow this Mac", compact: true)
+            let stopButton = EMButton(title: "Stop", kind: .danger, compact: true)
+
+            let fieldsRow = EMUI.toolbar([
+                EMText.caption("Latitude", size: 11), latitude,
+                EMText.caption("Longitude", size: 11), longitude,
+                setButton, followButton, stopButton,
+            ], height: 32)
+
+            var presetButtons: [EMButton] = []
+            var views: [NSView] = [EMText.caption("Presets", size: 11)]
+            for preset in Self.presets {
+                let button = EMButton(title: preset.name, compact: true)
+                button.onAction = { [weak self] in
+                    guard let self, slot < self.panels.count else { return }
+                    self.panels[slot].latitude.stringValue = String(format: "%.4f", preset.latitude)
+                    self.panels[slot].longitude.stringValue = String(format: "%.4f", preset.longitude)
+                    self.app?.applyLocation(slot: slot, latitude: preset.latitude, longitude: preset.longitude)
+                    self.refresh()
+                }
+                presetButtons.append(button)
+                views.append(button)
+            }
+            let presetRow = EMUI.toolbar(views, height: 30)
+
+            let panel = EMUI.panel(title: "Phone \(slot + 1)", views: [
+                status,
+                fieldsRow,
+                presetRow,
+                hint,
+            ])
+
+            column.addArrangedSubview(panel)
+            panel.widthAnchor.constraint(equalTo: column.widthAnchor).isActive = true
+            panels.append(PhonePanel(slot: slot, title: "Phone \(slot + 1)", status: status, hint: hint,
+                                     latitude: latitude, longitude: longitude, setButton: setButton,
+                                     followButton: followButton, stopButton: stopButton))
+            panels[panels.count - 1].presetButtons = presetButtons
+
+            setButton.onAction = { [weak self] in
+                guard let self, let lat = Double(latitude.stringValue.replacingOccurrences(of: ",", with: ".")),
+                      let lon = Double(longitude.stringValue.replacingOccurrences(of: ",", with: ".")) else {
+                    self?.setHint(slot, "Enter numbers like 51.0543 and 3.7174")
+                    return
+                }
+                self.app?.applyLocation(slot: slot, latitude: lat, longitude: lon)
+                self.refresh()
+            }
+            followButton.onAction = { [weak self] in
+                self?.app?.followMacLocation(slot: slot)
+                self?.refresh()
+            }
+            stopButton.onAction = { [weak self] in
+                self?.app?.stopLocation(slot: slot)
+                self?.refresh()
+            }
+        }
+
+        addSubview(column)
+        NSLayoutConstraint.activate([
+            column.topAnchor.constraint(equalTo: topAnchor, constant: 58),
+            column.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 22),
+            column.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -22),
+            column.bottomAnchor.constraint(lessThanOrEqualTo: bottomAnchor, constant: -20),
+        ])
+        refresh()
+    }
+
+    required init?(coder: NSCoder) { fatalError() }
+
+    private func setHint(_ slot: Int, _ text: String) {
+        guard slot < panels.count else { return }
+        panels[slot].hint.stringValue = text
+        panels[slot].hint.textColor = EMPalette.warn
+    }
+
+    override func refresh() {
+        guard let app else { return }
+        for panel in panels {
+            let info = app.locationStatus(slot: panel.slot)
+            panel.status.stringValue = info.text
+            panel.status.textColor = info.color
+            let connected = info.connected && info.supported
+            panel.setButton.isEnabled = connected
+            panel.followButton.isEnabled = connected
+            panel.stopButton.isEnabled = info.active
+            for button in panel.presetButtons { button.isEnabled = connected }
+            if !info.connected {
+                panel.hint.stringValue = "Boot this phone first: the location is pushed into the guest over the control channel."
+                panel.hint.textColor = EMPalette.textTertiary
+            } else if !info.supported {
+                panel.hint.stringValue = "This guest does not advertise location support."
+                panel.hint.textColor = EMPalette.warn
+            } else {
+                panel.hint.stringValue = "iOS applies it system wide. Some apps cache a location until they restart."
+                panel.hint.textColor = EMPalette.textTertiary
+            }
+        }
+    }
+
+    override func phoneChanged() { refresh() }
 }
 
 // MARK: - Thumbnails

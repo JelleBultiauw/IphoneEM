@@ -30,6 +30,13 @@ The rest:
 Two bays run two machines at the same time, each with its own disk, so they are really separate
 phones. You need a second machine for that: Setup can clone one in a few seconds.
 
+Each phone keeps its full configured memory (8 GB by default). Setup has an opt-in **Allow host
+overcommit** switch that uses a private macOS Virtualization setting when available. This lets macOS
+overcommit backing pages while the guest still sees the same RAM size; it is a host allocation hint,
+not guaranteed identical-page deduplication. It applies to phones booted after the setting changes,
+and older macOS releases simply use the normal allocation path. If a phone does not boot with it
+enabled, turn the switch off and report the engine output from Setup.
+
 ## Requirements
 
 - Apple Silicon Mac, macOS 15 or newer, Xcode command line tools
@@ -110,7 +117,8 @@ as a child process, and their output goes into the Setup console.
 
 The two engine edits are small: one routes a launch without arguments to the UI, the other stops the
 process from exiting when a guest shuts down, because with two machines one of them stopping should not
-take the app with it.
+take the app with it. The memory setting is an additional opt-in engine patch; it keeps the guest's
+configured memory size unchanged and only changes the host's allocation policy.
 
 ## Credits
 

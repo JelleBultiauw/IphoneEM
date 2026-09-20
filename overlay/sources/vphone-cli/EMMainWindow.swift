@@ -56,6 +56,7 @@ final class EMMainWindowController: NSObject {
         phonesPage.app = app
         pages[.files] = EMFilesPage(app: app)
         pages[.apps] = EMAppsPage(app: app)
+        pages[.location] = EMLocationPage(app: app)
         pages[.screenshots] = EMScreenshotsPage(app: app)
         pages[.setup] = EMSetupPage(app: app)
         pages[.info] = EMInfoPage(app: app)
@@ -231,6 +232,11 @@ final class EMPhonesPageView: EMPageView {
             pane.needsFirmware = !slot.hasFirmware
             pane.setVMName(slot.bundleName)
             pane.linkText = slot.control?.guestIP ?? ""
+            if case .off = slot.location {
+                pane.locationText = nil
+            } else {
+                pane.locationText = app.locationStatus(slot: index).text
+            }
         }
         panes.sort { $0.index < $1.index }
         needsLayout = true

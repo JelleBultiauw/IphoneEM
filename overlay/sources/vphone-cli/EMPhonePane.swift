@@ -14,6 +14,8 @@ final class EMPhonePaneView: NSView {
     var linkText: String = "" { didSet { needsDisplay = true } }
     var isActive: Bool = false { didSet { needsDisplay = true; updateControls() } }
     var isDual: Bool = false { didSet { needsDisplay = true } }
+    /// Shown in the footer when a location is being simulated for this phone.
+    var locationText: String? { didSet { needsDisplay = true } }
     /// True when the selected machine has no firmware restored yet.
     var needsFirmware = false { didSet { needsDisplay = true } }
 
@@ -507,5 +509,18 @@ final class EMPhonePaneView: NSView {
         vmButton.title = name.map { "\($0)" } ?? "Select VM"
         vmButton.kind = name == nil ? .quiet : .normal
         needsLayout = true
+    }
+}
+
+// The pinned engine predates the recents helper. Keep this small adapter in
+// the overlay so the UI remains compatible with that engine checkout.
+extension VPhoneVirtualMachineView {
+    func injectAppSwitcher(screenWidth: Int, screenHeight: Int) {
+        let width = Double(screenWidth)
+        let height = Double(screenHeight)
+        injectSwipe(fromX: width * 0.5, fromY: height * 0.985,
+                    toX: width * 0.5, toY: height * 0.42,
+                    screenWidth: screenWidth, screenHeight: screenHeight,
+                    durationMs: 900)
     }
 }
