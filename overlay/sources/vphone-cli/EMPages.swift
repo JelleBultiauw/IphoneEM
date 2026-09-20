@@ -1184,6 +1184,7 @@ final class EMLocationPage: EMPageView, MKMapViewDelegate {
         column.orientation = .vertical
         column.spacing = 12
         column.alignment = .leading
+        column.distribution = .fill
         column.translatesAutoresizingMaskIntoConstraints = false
 
         for slot in 0..<2 {
@@ -1222,7 +1223,7 @@ final class EMLocationPage: EMPageView, MKMapViewDelegate {
             map.slot = slot
             map.delegate = self
             map.translatesAutoresizingMaskIntoConstraints = false
-            map.heightAnchor.constraint(equalToConstant: 220).isActive = true
+            map.heightAnchor.constraint(greaterThanOrEqualToConstant: 300).isActive = true
             map.pointOfInterestFilter = .excludingAll
             map.showsCompass = false
             map.showsScale = false
@@ -1242,13 +1243,15 @@ final class EMLocationPage: EMPageView, MKMapViewDelegate {
                 status,
                 fieldsRow,
                 presetRow,
+                hint,
                 EMText.caption("Click the map to drop a pin, drag the pin to fine tune", size: 10.5),
                 map,
-                hint,
-            ])
+            ], fill: true)
 
             column.addArrangedSubview(panel)
             panel.widthAnchor.constraint(equalTo: column.widthAnchor).isActive = true
+            panel.setContentHuggingPriority(NSLayoutConstraint.Priority(1), for: .vertical)
+            map.widthAnchor.constraint(equalTo: panel.widthAnchor, constant: -28).isActive = true
             panels.append(PhonePanel(slot: slot, box: panel, map: map, status: status, hint: hint,
                                      latitude: latitude, longitude: longitude, setButton: setButton,
                                      followButton: followButton, stopButton: stopButton))
@@ -1273,31 +1276,12 @@ final class EMLocationPage: EMPageView, MKMapViewDelegate {
             }
         }
 
-        let documentView = NSView()
-        documentView.translatesAutoresizingMaskIntoConstraints = false
-        documentView.addSubview(column)
-        let scrollView = NSScrollView()
-        scrollView.hasVerticalScroller = true
-        scrollView.drawsBackground = false
-        scrollView.borderType = .noBorder
-        scrollView.autohidesScrollers = true
-        scrollView.translatesAutoresizingMaskIntoConstraints = false
-        scrollView.documentView = documentView
-        addSubview(scrollView)
+        addSubview(column)
         NSLayoutConstraint.activate([
-            scrollView.topAnchor.constraint(equalTo: topAnchor, constant: 52),
-            scrollView.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 16),
-            scrollView.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -16),
-            scrollView.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -14),
-
-            documentView.leadingAnchor.constraint(equalTo: scrollView.contentView.leadingAnchor),
-            documentView.trailingAnchor.constraint(equalTo: scrollView.contentView.trailingAnchor),
-            documentView.topAnchor.constraint(equalTo: scrollView.contentView.topAnchor),
-
-            column.topAnchor.constraint(equalTo: documentView.topAnchor, constant: 6),
-            column.leadingAnchor.constraint(equalTo: documentView.leadingAnchor, constant: 6),
-            column.trailingAnchor.constraint(equalTo: documentView.trailingAnchor, constant: -6),
-            column.bottomAnchor.constraint(equalTo: documentView.bottomAnchor, constant: -12),
+            column.topAnchor.constraint(equalTo: topAnchor, constant: 58),
+            column.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 22),
+            column.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -22),
+            column.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -16),
         ])
         refresh()
     }
