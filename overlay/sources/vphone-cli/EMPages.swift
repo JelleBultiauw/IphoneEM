@@ -1220,7 +1220,7 @@ final class EMLocationPage: EMPageView, MKMapViewDelegate {
             map.slot = slot
             map.delegate = self
             map.translatesAutoresizingMaskIntoConstraints = false
-            map.heightAnchor.constraint(equalToConstant: 250).isActive = true
+            map.heightAnchor.constraint(equalToConstant: 220).isActive = true
             map.pointOfInterestFilter = .excludingAll
             map.showsCompass = false
             map.showsScale = false
@@ -1271,12 +1271,31 @@ final class EMLocationPage: EMPageView, MKMapViewDelegate {
             }
         }
 
-        addSubview(column)
+        let documentView = NSView()
+        documentView.translatesAutoresizingMaskIntoConstraints = false
+        documentView.addSubview(column)
+        let scrollView = NSScrollView()
+        scrollView.hasVerticalScroller = true
+        scrollView.drawsBackground = false
+        scrollView.borderType = .noBorder
+        scrollView.autohidesScrollers = true
+        scrollView.translatesAutoresizingMaskIntoConstraints = false
+        scrollView.documentView = documentView
+        addSubview(scrollView)
         NSLayoutConstraint.activate([
-            column.topAnchor.constraint(equalTo: topAnchor, constant: 58),
-            column.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 22),
-            column.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -22),
-            column.bottomAnchor.constraint(lessThanOrEqualTo: bottomAnchor, constant: -20),
+            scrollView.topAnchor.constraint(equalTo: topAnchor, constant: 52),
+            scrollView.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 16),
+            scrollView.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -16),
+            scrollView.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -14),
+
+            documentView.leadingAnchor.constraint(equalTo: scrollView.contentView.leadingAnchor),
+            documentView.trailingAnchor.constraint(equalTo: scrollView.contentView.trailingAnchor),
+            documentView.topAnchor.constraint(equalTo: scrollView.contentView.topAnchor),
+
+            column.topAnchor.constraint(equalTo: documentView.topAnchor, constant: 6),
+            column.leadingAnchor.constraint(equalTo: documentView.leadingAnchor, constant: 6),
+            column.trailingAnchor.constraint(equalTo: documentView.trailingAnchor, constant: -6),
+            column.bottomAnchor.constraint(equalTo: documentView.bottomAnchor, constant: -12),
         ])
         refresh()
     }
